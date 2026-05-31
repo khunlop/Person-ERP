@@ -2127,7 +2127,7 @@ window._showNewFormula = function() {
     <div style="margin-top:14px">
       <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--muted)">ส่วนผสม (ต้องรวมกัน = 100%)</div>
       <table style="width:100%;font-size:12px;border-collapse:collapse" id="fmIngrTable">
-        <thead><tr style="background:var(--surface2)"><th style="padding:6px;text-align:left">SKU</th><th style="padding:6px;text-align:left">ชื่อ</th><th style="padding:6px;text-align:right">% โดยน้ำหนัก</th><th style="padding:6px"></th></tr></thead>
+        <thead><tr style="background:var(--surface2)"><th style="padding:6px;text-align:left">วัตถุดิบ</th><th style="padding:6px;text-align:left">ชื่อ</th><th style="padding:6px;text-align:right">% โดยน้ำหนัก</th><th style="padding:6px;text-align:center">หน่วย</th><th style="padding:6px"></th></tr></thead>
         <tbody id="fmIngrBody"></tbody>
       </table>
       <button class="btn btn-ghost btn-xs" style="margin-top:8px" onclick="window._addFmRow()"><i class="fas fa-plus"></i> เพิ่มวัตถุดิบ</button>
@@ -2142,18 +2142,65 @@ window._showNewFormula = function() {
 };
 
 window._fmRowCount = 0;
-window._addFmRow = function() {
+window._fmMaterials = []; // cache วัตถุดิบ
+
+// โหลดวัตถุดิบครั้งแรก
+window._loadFmMaterials = async function() {
+  if (window._fmMaterials.length) return window._fmMaterials;
+  try {
+    const { data } = await ERP.api.rawMaterials({ limit: 500 });
+    window._fmMaterials = data || [];
+  } catch(_) {}
+  return window._fmMaterials;
+};
+
+window._addFmRow = async function() {
   const n = ++window._fmRowCount;
   const tbody = document.getElementById("fmIngrBody");
   if (!tbody) return;
+
+  // โหลดวัตถุดิบ
+  const mats = await window._loadFmMaterials();
+  const opts = mats.map(m =>
+    `<option value="${m.sku}" data-name="${m.nameTH||m.sku}" data-unit="${m.unit||'กรัม'}">${m.sku} — ${m.nameTH||m.sku}</option>`
+  ).join("");
+
   const tr = document.createElement("tr");
   tr.id = `fmRow_${n}`;
   tr.innerHTML = `
-    <td style="padding:4px"><input class="form-control" style="font-size:11px" id="fm_sku_${n}" placeholder="RM-XXX"></td>
-    <td style="padding:4px"><input class="form-control" style="font-size:11px" id="fm_name_${n}" placeholder="ชื่อวัตถุดิบ"></td>
-    <td style="padding:4px"><input class="form-control" style="font-size:11px;text-align:right" type="number" id="fm_pct_${n}" placeholder="0" oninput="window._calcFmTotal()" step="0.01"></td>
-    <td style="padding:4px"><button class="btn btn-xs btn-danger" onclick="document.getElementById('fmRow_${n}').remove();window._calcFmTotal()"><i class="fas fa-trash"></i></button></td>`;
+    <td style="padding:4px;min-width:200px">
+      <select class="form-control" style="font-size:11px" id="fm_sku_${n}"
+        onchange="window._onFmSkuChange(${n})">
+        <option value="">-- เลือกวัตถุดิบ --</option>
+        ${opts}
+      </select>
+    </td>
+    <td style="padding:4px">
+      <input class="form-control" style="font-size:11px;background:var(--surface2)" id="fm_name_${n}"
+        placeholder="ชื่อวัตถุดิบ" readonly>
+    </td>
+    <td style="padding:4px;width:100px">
+      <input class="form-control" style="font-size:11px;text-align:right" type="number"
+        id="fm_pct_${n}" placeholder="0" oninput="window._calcFmTotal()" step="0.01" min="0" max="100">
+    </td>
+    <td style="padding:4px;width:60px;text-align:center;color:var(--muted);font-size:11px" id="fm_unit_${n}">กรัม</td>
+    <td style="padding:4px">
+      <button class="btn btn-xs btn-danger" onclick="document.getElementById('fmRow_${n}').remove();window._calcFmTotal()">
+        <i class="fas fa-trash"></i>
+      </button>
+    </td>`;
   tbody.appendChild(tr);
+};
+
+// เมื่อเลือก SKU ให้ auto-fill ชื่อและหน่วย
+window._onFmSkuChange = function(n) {
+  const sel  = document.getElementById(`fm_sku_${n}`);
+  const nameEl = document.getElementById(`fm_name_${n}`);
+  const unitEl = document.getElementById(`fm_unit_${n}`);
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  if (nameEl) nameEl.value = opt?.dataset?.name || "";
+  if (unitEl) unitEl.textContent = opt?.dataset?.unit || "กรัม";
 };
 
 window._calcFmTotal = function() {
@@ -2171,11 +2218,12 @@ window._saveFormula = async function() {
 
   const ingr = [];
   document.querySelectorAll("[id^='fm_sku_']").forEach(el => {
-    const n   = el.id.split("_")[2];
-    const sku = el.value.trim();
-    const nm  = document.getElementById(`fm_name_${n}`)?.value?.trim();
-    const pct = parseFloat(document.getElementById(`fm_pct_${n}`)?.value||0);
-    if (sku && pct > 0) ingr.push({ sku, nameTH: nm, pct, unit: "กรัม" });
+    const n    = el.id.split("_")[2];
+    const sku  = el.value?.trim();
+    const nm   = document.getElementById(`fm_name_${n}`)?.value?.trim();
+    const pct  = parseFloat(document.getElementById(`fm_pct_${n}`)?.value||0);
+    const unit = document.getElementById(`fm_unit_${n}`)?.textContent?.trim() || "กรัม";
+    if (sku && pct > 0) ingr.push({ sku, nameTH: nm, pct, unit });
   });
 
   if (!ingr.length) { alert("กรุณาเพิ่มวัตถุดิบอย่างน้อย 1 รายการ"); return; }
