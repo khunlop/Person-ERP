@@ -303,7 +303,7 @@ window._deleteMaterial = async function(id, name) {
 window.page_mo = function(c) {
   c.innerHTML = `<div class="page-hd"><div><div class="page-title"><i class="fas fa-file-lines" style="color:var(--blue);margin-right:7px"></i>ใบสั่งผลิต</div><div class="page-sub" id="moSub">กำลังโหลด...</div></div><div class="page-hd-actions"><button class="btn btn-ghost btn-sm" onclick="_loadMOs()"><i class="fas fa-rotate"></i></button><button class="btn btn-primary btn-sm" onclick="page_mo._new()"><i class="fas fa-plus"></i> สร้าง MO ใหม่</button></div></div>
   <div class="card"><div class="filter-bar"><div class="search-wrap"><i class="fas fa-magnifying-glass"></i><input id="moSearch" placeholder="ค้นหา MO, ลูกค้า..."></div><select class="filter-select" id="moStatus"><option value="">ทุกสถานะ</option><option value="draft">Draft</option><option value="waiting_approval">รออนุมัติ</option><option value="approved">อนุมัติ</option><option value="production">ผลิต</option><option value="qc">QC</option><option value="completed">เสร็จ</option><option value="closed">ปิด</option></select></div>
-  <div class="tbl-wrap"><table><thead><tr><th>เลข MO</th><th>สินค้า</th><th>ลูกค้า</th><th>Batch</th><th>จำนวน</th><th>ส่งมอบ</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="moTbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</td></tr></tbody></table></div></div>`;
+  <div class="tbl-wrap"><table><thead><tr><th>เลข MO / วันที่สร้าง</th><th>สินค้า</th><th>ลูกค้า</th><th>Batch</th><th>จำนวน</th><th>ส่งมอบ</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="moTbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</td></tr></tbody></table></div></div>`;
   _loadMOs();
 };
 
@@ -1584,12 +1584,24 @@ window._loadMOs = async function() {
     const sub = document.getElementById("moSub");
     if (sub) sub.textContent = `${data.length} MO ที่ยังเปิดอยู่ · ${new Date().toLocaleTimeString("th-TH")}`;
     const now = new Date();
-    document.getElementById("moTbody").innerHTML = (data || []).map(m => {
+    // เรียงจากใหม่ไปเก่า
+    const sorted = [...(data||[])].sort((a, b) => {
+      const da = new Date(a.createdAt || 0);
+      const db = new Date(b.createdAt || 0);
+      return db - da;
+    });
+
+    document.getElementById("moTbody").innerHTML = sorted.map(m => {
       const late = m.deliveryDate && new Date(m.deliveryDate) < now && !["closed","cancelled"].includes(m.status);
       const st = ERP.utils.statusBadge(late ? "rejected" : m.status);
+      // แปลงวันที่สร้างให้อ่านง่าย
+      const createdDate = m.createdAt ? m.createdAt.toString().substring(0,16) : "-";
       return `<tr>
-        <td><span class="cell-code">${m.id}</span></td>
-        <td><strong>${m.productName}</strong><div style="font-size:10px;color:var(--muted)">${m.productCategory||""} ${m.qty||""} ${m.unit||""}</div></td>
+        <td>
+          <span class="cell-code">${m.id}</span>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px"><i class="fas fa-clock" style="font-size:9px"></i> ${createdDate}</div>
+        </td>
+        <td><strong>${m.productName}</strong><div style="font-size:10px;color:var(--muted)">${m.productCategory||""} · ${m.qty||""} ${m.unit||""}</div></td>
         <td style="font-size:12px">${m.customerId||"-"}</td>
         <td><span class="cell-lot">${m.batchNumber||"-"}</span></td>
         <td>${ERP.utils.num(m.qty)} ${m.unit||""}</td>
