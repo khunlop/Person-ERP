@@ -332,14 +332,80 @@ window._loadMOs = async function() {
 };
 
 window._submitMO = async function(moId) {
-  await ERP.run(() => ERP.api.moveMO(moId, "waiting_approval", "ส่งอนุมัติ"), { successMsg: `ส่งอนุมัติ ${moId} สำเร็จ` });
-  _loadMOs();
+  if (!confirm(`ส่ง MO ${moId} เพื่ออนุมัติ?`)) return;
+  try {
+    ERP.loading.show("กำลังส่งอนุมัติ...");
+    await ERP.http.post("update", {
+      sheet: "ProductionOrders",
+      id   : moId,
+      data : {
+        status               : "waiting_approval",
+        waiting_approvalAt   : new Date().toLocaleString("th-TH"),
+        waiting_approvalBy   : ERP.session.user?.id || "admin",
+      }
+    });
+    // อัปเดต Approvals
+    const apprRes = await ERP.api.approvals({ limit: 200 });
+    const appr = (apprRes.data || []).find(a => a.docId === moId);
+    if (appr) {
+      await ERP.http.post("update", {
+        sheet: "Approvals", id: appr.id,
+        data : { status: "waiting", requestedAt: new Date().toLocaleString("th-TH") }
+      });
+    }
+    ERP.loading.hide();
+    ERP.toast.success(`ส่งอนุมัติ ${moId} สำเร็จ!`);
+    _loadMOs();
+  } catch(e) {
+    ERP.loading.hide();
+    ERP.toast.danger("ล้มเหลว: " + e.message);
+  }
 };
 
 window._approveMO = async function(moId, ok) {
   const note = ok ? "" : (prompt("เหตุผลที่ปฏิเสธ:") || "");
-  await ERP.run(() => ERP.api.approveMO(moId, ok, note), { successMsg: ok ? `อนุมัติ ${moId} สำเร็จ` : `ปฏิเสธ ${moId}` });
-  _loadMOs();
+  if (!ok && note === null) return; // กด Cancel
+
+  try {
+    ERP.loading.show(ok ? "กำลังอนุมัติ..." : "กำลังปฏิเสธ...");
+
+    // 1. เปลี่ยนสถานะใน ProductionOrders โดยตรง
+    const newStatus = ok ? "approved" : "rejected";
+    await ERP.http.post("update", {
+      sheet: "ProductionOrders",
+      id   : moId,
+      data : {
+        status      : newStatus,
+        approvedAt  : new Date().toLocaleString("th-TH"),
+        approvedBy  : ERP.session.user?.id || "admin",
+        statusNote  : note || "",
+      }
+    });
+
+    // 2. อัปเดต Approvals sheet
+    const apprRes = await ERP.api.approvals({ limit: 200 });
+    const appr = (apprRes.data || []).find(a => a.docId === moId);
+    if (appr) {
+      await ERP.http.post("update", {
+        sheet: "Approvals",
+        id   : appr.id,
+        data : {
+          status     : newStatus,
+          approvedBy : ERP.session.user?.id || "admin",
+          approvedAt : new Date().toLocaleString("th-TH"),
+          note       : note || "",
+        }
+      });
+    }
+
+    ERP.loading.hide();
+    ERP.toast.success(ok ? `✅ อนุมัติ ${moId} สำเร็จ!` : `❌ ปฏิเสธ ${moId}`);
+    _loadMOs();
+
+  } catch(e) {
+    ERP.loading.hide();
+    ERP.toast.danger("ล้มเหลว: " + e.message);
+  }
 };
 
 /* ─────────────────────────────────────────────────────────────
