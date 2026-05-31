@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คนตัวหอม ERP — ระบบบริหารโรงงานเครื่องสำอาง</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ─── RESET & ROOT ─── */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --blue:#1558c0;--blue-light:#dbeafe;--blue-dark:#0e3d87;--blue-mid:#2563eb;
+  --green:#16a34a;--green-light:#dcfce7;
+  --amber:#d97706;--amber-light:#fef3c7;
+  --red:#dc2626;--red-light:#fee2e2;
+  --teal:#0891b2;--teal-light:#e0f2fe;
+  --purple:#7c3aed;--purple-light:#ede9fe;
+  --ink:#0f172a;--ink2:#1e293b;--ink3:#334155;
+  --muted:#64748b;--light:#94a3b8;--pale:#cbd5e1;
+  --surface:#ffffff;--surface2:#f8fafc;--surface3:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --sidebar:#06112a;--sidebar2:#0d1f45;
+  --radius:6px;--radius2:10px;--radius3:14px;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05);
+  --shadow2:0 4px 12px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.05);
+  --shadow3:0 8px 24px rgba(0,0,0,.1),0 4px 8px rgba(0,0,0,.06);
+  --font:'IBM Plex Sans Thai',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--font);font-size:13px;color:var(--ink);background:var(--surface3)}
+
+/* ─── LOGIN ─── */
+.login-screen{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn .4s ease}
+.login-bg{position:absolute;inset:0;overflow:hidden}
+.login-bg::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(21,88,192,.25) 0%,transparent 70%);top:-200px;right:-100px}
+.login-bg::after{content:'';position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(22,163,74,.15) 0%,transparent 70%);bottom:-100px;left:-50px}
+.login-dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:28px 28px}
+.login-card{position:relative;background:#fff;border-radius:20px;padding:40px;width:400px;box-shadow:0 24px 80px rgba(0,0,0,.35)}
+.login-brand{text-align:center;margin-bottom:28px}
+.login-icon{width:64px;height:64px;background:linear-gradient(135deg,var(--blue),var(--green));border-radius:18px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin-bottom:12px;box-shadow:0 8px 24px rgba(21,88,192,.3)}
+.login-title{font-size:22px;font-weight:700;color:var(--ink);letter-spacing:-.3px}
+.login-sub{font-size:12px;color:var(--muted);margin-top:3px}
+.login-field{margin-bottom:14px}
+.login-label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}
+.login-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius2);font-size:14px;font-family:var(--font);color:var(--ink);background:#fff;transition:border-color .2s,box-shadow .2s;outline:none}
+.login-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(21,88,192,.12)}
+.login-row{display:flex;align-items:center;gap:7px;margin-bottom:20px;font-size:12px;color:var(--muted)}
+.login-row input{width:15px;height:15px;cursor:pointer;accent-color:var(--blue)}
+.login-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;border:none;border-radius:var(--radius2);font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;transition:all .2s;letter-spacing:.1px}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(21,88,192,.35)}
+.login-btn:active{transform:translateY(0)}
+.login-hint{text-align:center;margin-top:14px;font-size:11px;color:var(--light)}
+
+/* ─── APP SHELL ─── */
+#app{display:none;height:100vh;width:100vw;overflow:hidden}
+#app.visible{display:flex;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── SIDEBAR ─── */
+.sidebar{width:228px;background:var(--sidebar);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;transition:width .25s cubic-bezier(.4,0,.2,1)}
+.sidebar.collapsed{width:56px}
+.sb-head{padding:16px 14px;display:flex;align-items:center;gap:11px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;min-height:56px}
+.sb-logo{width:30px;height:30px;background:linear-gradient(135deg,var(--blue),var(--green));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;flex-shrink:0}
+.sb-brand{overflow:hidden;white-space:nowrap}
+.sb-brand-name{color:#fff;font-size:13px;font-weight:700;letter-spacing:-.2px}
+.sb-brand-ver{color:rgba(200,220,255,.45);font-size:10px;font-weight:400;margin-top:1px}
+.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 0}
+.sb-nav::-webkit-scrollbar{width:0}
+.sb-section-label{padding:10px 14px 4px;font-size:9px;font-weight:700;color:rgba(200,220,255,.3);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden}
+.sidebar.collapsed .sb-section-label{opacity:0}
+.sb-item{display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;color:rgba(200,220,255,.65);border-left:2.5px solid transparent;transition:all .15s;white-space:nowrap;overflow:hidden;user-select:none}
+.sb-item:hover{background:rgba(255,255,255,.05);color:rgba(255,255,255,.9)}
+.sb-item.active{background:rgba(21,88,192,.22);color:#fff;border-left-color:var(--blue-mid)}
+.sb-item i{width:16px;text-align:center;font-size:13px;flex-shrink:0}
+.sb-item-label{font-size:12px;font-weight:500;flex:1}
+.sb-badge{background:var(--red);color:#fff;border-radius:9px;padding:1px 6px;font-size:9px;font-weight:700;margin-left:auto;flex-shrink:0}
+.sidebar.collapsed .sb-item-label,.sidebar.collapsed .sb-badge{display:none}
+.sb-footer{padding:12px 14px;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0}
+.sb-user{display:flex;align-items:center;gap:9px;cursor:pointer;padding:7px 8px;border-radius:var(--radius);transition:background .15s}
+.sb-user:hover{background:rgba(255,255,255,.06)}
+.sb-avatar{width:28px;height:28px;background:linear-gradient(135deg,var(--blue),var(--green));border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0}
+.sb-user-info{overflow:hidden;white-space:nowrap}
+.sb-user-name{color:#fff;font-size:12px;font-weight:600}
+.sb-user-role{color:rgba(200,220,255,.45);font-size:10px}
+.sidebar.collapsed .sb-user-info{display:none}
+.sb-logout-btn{width:100%;display:flex;align-items:center;gap:9px;padding:8px 10px;background:transparent;border:1px solid rgba(255,255,255,.12);border-radius:6px;color:rgba(255,100,100,.75);font-size:12px;font-family:var(--font);cursor:pointer;transition:all .15s;margin-top:2px}
+.sb-logout-btn:hover{background:rgba(220,50,50,.15);border-color:rgba(255,100,100,.35);color:#ff8080}
+.sb-logout-btn i{font-size:13px;width:16px;text-align:center}
+.sidebar.collapsed .sb-logout-label{display:none}
+.sidebar.collapsed .sb-logout-btn{justify-content:center;padding:8px}
+
+/* ─── MAIN ─── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ─── TOPBAR ─── */
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:10px;flex-shrink:0;box-shadow:var(--shadow)}
+.tb-toggle{width:30px;height:30px;border:none;background:transparent;cursor:pointer;border-radius:var(--radius);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .15s}
+.tb-toggle:hover{background:var(--surface3);color:var(--ink)}
+.tb-breadcrumb{display:flex;align-items:center;gap:5px;font-size:12px}
+.tb-bc-main{font-weight:600;color:var(--ink)}
+.tb-bc-sep{color:var(--pale);font-size:11px}
+.tb-bc-sub{color:var(--muted)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.tb-btn{width:32px;height:32px;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:13px;transition:all .15s;position:relative}
+.tb-btn:hover{background:var(--blue-light);color:var(--blue);border-color:var(--blue)}
+.tb-notif-dot{position:absolute;top:5px;right:5px;width:6px;height:6px;background:var(--red);border-radius:50%;border:1.5px solid #fff}
+.tb-time{font-size:11px;color:var(--muted);font-family:var(--mono);padding:0 10px;border-left:1px solid var(--border)}
+.tb-conn{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--green);padding:0 10px;border-left:1px solid var(--border)}
+.tb-conn-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
+
+/* ─── CONTENT ─── */
+.content{flex:1;overflow-y:auto;padding:20px;background:var(--surface3)}
+.content::-webkit-scrollbar{width:5px}
+.content::-webkit-scrollbar-thumb{background:var(--pale);border-radius:10px}
+
+/* ─── PAGE HEADER ─── */
+.page-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px}
+.page-hd-left{}
+.page-title{font-size:18px;font-weight:700;color:var(--ink);letter-spacing:-.3px}
+.page-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.page-hd-actions{display:flex;gap:7px;align-items:center;flex-shrink:0}
+
+/* ─── BUTTONS ─── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius);border:1px solid transparent;cursor:pointer;font-size:12px;font-weight:600;font-family:var(--font);transition:all .15s;letter-spacing:.1px;white-space:nowrap}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-primary:hover{background:var(--blue-dark);box-shadow:0 4px 12px rgba(21,88,192,.25)}
+.btn-success{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-success:hover{background:#15803d}
+.btn-ghost{background:var(--surface);color:var(--ink3);border-color:var(--border)}
+.btn-ghost:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-xs{padding:4px 9px;font-size:11px}
+.btn-sm{padding:5px 11px;font-size:11px}
+.btn-icon-only{padding:6px 8px}
+
+/* ─── BADGES ─── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.03em}
+.badge-blue{background:var(--blue-light);color:var(--blue-dark)}
+.badge-green{background:var(--green-light);color:#15803d}
+.badge-amber{background:var(--amber-light);color:#92400e}
+.badge-red{background:var(--red-light);color:#991b1b}
+.badge-teal{background:var(--teal-light);color:#164e63}
+.badge-purple{background:var(--purple-light);color:#5b21b6}
+.badge-gray{background:var(--surface3);color:var(--muted)}
+
+/* ─── KPI CARDS ─── */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:14px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;cursor:pointer;transition:all .2s}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow2)}
+.kpi-accent{position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius2) var(--radius2) 0 0}
+.kpi-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.kpi-value{font-size:24px;font-weight:700;letter-spacing:-1px;line-height:1}
+.kpi-foot{font-size:10px;color:var(--light);margin-top:5px}
+.kpi-icon{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:30px;opacity:.07}
+
+/* ─── CHART GRID ─── */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);box-shadow:var(--shadow)}
+.card-head{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:12px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px}
+.card-body{padding:16px}
+.card-body-sm{padding:12px 16px}
+
+/* ─── TABLE ─── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--surface2);padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1.5px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+thead th:hover{color:var(--blue)}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--surface3);font-size:12px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#fafbfd}
+.cell-code{font-family:var(--mono);font-size:11px;background:var(--surface3);padding:2px 7px;border-radius:4px;color:var(--ink3);border:1px solid var(--border);white-space:nowrap}
+.cell-lot{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;font-family:var(--mono)}
+
+/* ─── FILTER BAR ─── */
+.filter-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.search-wrap{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;flex:1;max-width:280px;transition:border-color .15s}
+.search-wrap:focus-within{border-color:var(--blue);box-shadow:0 0 0 2px rgba(21,88,192,.1)}
+.search-wrap i{color:var(--light);font-size:12px}
+.search-wrap input{border:none;outline:none;font-size:12px;font-family:var(--font);background:transparent;color:var(--ink);width:100%}
+.filter-select{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:var(--font);background:var(--surface);color:var(--ink);cursor:pointer;outline:none}
+.filter-select:focus{border-color:var(--blue)}
+
+/* ─── FORMS ─── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.form-control{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:var(--font);color:var(--ink);background:var(--surface);transition:border-color .15s,box-shadow .15s;outline:none}
+.form-control:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(21,88,192,.1)}
+.form-control[readonly]{background:var(--surface2);color:var(--muted)}
+select.form-control{cursor:pointer}
+
+/* ─── PROGRESS ─── */
+.prog-wrap{display:flex;align-items:center;gap:8px}
+.prog-bar{flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;max-width:80px}
+.prog-fill{height:100%;border-radius:3px;transition:width .5s}
+
+/* ─── WORKFLOW STEPS ─── */
+.wf-row{display:flex;align-items:center;margin:14px 0}
+.wf-step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.wf-step:not(:last-child)::after{content:'';position:absolute;top:16px;left:50%;width:100%;height:2px;background:var(--border);z-index:0}
+.wf-step.done::after{background:var(--green)}
+.wf-step.active::after{background:linear-gradient(90deg,var(--blue),var(--border))}
+.wf-circle{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;z-index:1;position:relative;transition:all .2s}
+.wf-step.done .wf-circle{background:var(--green);border-color:var(--green);color:#fff}
+.wf-step.active .wf-circle{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 0 3px rgba(21,88,192,.2)}
+.wf-lbl{font-size:10px;font-weight:600;color:var(--muted);margin-top:5px;text-align:center}
+.wf-step.active .wf-lbl{color:var(--blue)}
+.wf-step.done .wf-lbl{color:var(--green)}
+
+/* ─── QC GRID ─── */
+.qc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.qc-item{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius2);padding:12px;transition:border-color .2s}
+.qc-item-hd{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+.qc-item-icon{width:28px;height:28px;border-radius:7px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--blue)}
+.qc-item-name{font-size:12px;font-weight:700}
+.qc-btns{display:flex;gap:5px;margin-bottom:8px}
+.qc-btn{flex:1;padding:6px;border-radius:5px;border:1.5px solid var(--border);background:var(--surface);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .15s;text-align:center}
+.qc-btn.pass:hover,.qc-btn.pass.active{background:var(--green-light);border-color:var(--green);color:#15803d}
+.qc-btn.fail:hover,.qc-btn.fail.active{background:var(--red-light);border-color:var(--red);color:#991b1b}
+.qc-item.passed{border-color:var(--green);background:#f0fdf4}
+.qc-item.failed{border-color:var(--red);background:#fff5f5}
+.qc-note{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:var(--font);resize:none;outline:none}
+.qc-note:focus{border-color:var(--blue)}
+
+/* ─── CHECKLIST ─── */
+.checklist{display:flex;flex-direction:column;gap:7px}
+.check-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius2);background:var(--surface);cursor:pointer;transition:all .15s}
+.check-item:hover{border-color:var(--blue);background:var(--blue-light)}
+.check-item.checked{background:#f0fdf4;border-color:var(--green)}
+.check-box{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;transition:all .15s}
+.check-item.checked .check-box{background:var(--green);border-color:var(--green);color:#fff}
+.check-lbl{font-size:12px;font-weight:500;flex:1}
+.check-meta{margin-left:auto;font-size:10px;color:var(--muted)}
+
+/* ─── NOTIFICATION LIST ─── */
+.notif-item{display:flex;align-items:flex-start;gap:11px;padding:11px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.notif-item:hover{background:var(--surface2)}
+.notif-item.unread{background:#f0f6ff}
+.notif-icon-wrap{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.notif-body{flex:1;min-width:0}
+.notif-title{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.notif-desc{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif-time{font-size:10px;color:var(--light);margin-top:3px;display:flex;align-items:center;gap:4px}
+
+/* ─── MODAL ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:500;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s ease;backdrop-filter:blur(2px)}
+.modal{background:#fff;border-radius:var(--radius3);width:640px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.2)}
+.modal-lg{width:780px}
+.modal-hd{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-size:14px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-ft{padding:13px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:7px;flex-shrink:0;background:var(--surface2);border-radius:0 0 var(--radius3) var(--radius3)}
+.close-btn{width:26px;height:26px;border:none;background:transparent;cursor:pointer;border-radius:5px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:15px;transition:all .15s}
+.close-btn:hover{background:var(--surface3);color:var(--ink)}
+
+/* ─── STAT CARDS ROW ─── */
+.stat-row{display:flex;gap:10px;margin-bottom:14px}
+.stat-card{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:12px 16px;box-shadow:var(--shadow);text-align:center}
+.stat-num{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.stat-lbl{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+
+/* ─── COUNTDOWN PILL ─── */
+.countdown{display:inline-flex;align-items:center;gap:5px;background:var(--amber-light);color:#92400e;border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;font-family:var(--mono)}
+
+/* ─── FERMENT CARD ─── */
+.ferm-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ferm-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);box-shadow:var(--shadow);overflow:hidden}
+.ferm-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.ferm-title{font-size:12px;font-weight:700}
+.ferm-body{padding:14px}
+
+/* ─── REPORT GRID ─── */
+.report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.report-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:all .2s}
+.report-card:hover{transform:translateY(-2px);box-shadow:var(--shadow2);border-color:var(--blue)}
+.report-icon-wrap{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px}
+.report-name{font-size:12px;font-weight:700;margin-bottom:3px}
+.report-desc{font-size:11px;color:var(--muted)}
+
+/* ─── DOC GRID ─── */
+.doc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.doc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:16px;box-shadow:var(--shadow);cursor:pointer;text-align:center;transition:all .2s}
+.doc-card:hover{transform:translateY(-2px);box-shadow:var(--shadow2);border-color:var(--blue)}
+.doc-icon{width:44px;height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:9px}
+.doc-name{font-size:12px;font-weight:700;margin-bottom:3px}
+.doc-id{font-size:10px;color:var(--muted);font-family:var(--mono)}
+
+/* ─── FORMULA ─── */
+.formula-pct-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border);margin-top:10px}
+.pct-total{font-size:18px;font-weight:700;font-family:var(--mono)}
+.pct-ok{color:var(--green)}
+.pct-bad{color:var(--red)}
+
+/* ─── MISC ─── */
+.divider{height:1px;background:var(--border);margin:14px 0}
+.flex{display:flex}.items-center{align-items:center}.gap-6{gap:6px}.gap-8{gap:8px}.gap-10{gap:10px}
+.ml-auto{margin-left:auto}.mt-12{margin-top:12px}.mb-12{margin-bottom:12px}
+.text-muted{color:var(--muted)}.text-blue{color:var(--blue)}.text-green{color:var(--green)}.text-red{color:var(--red)}
+.font-bold{font-weight:700}.font-mono{font-family:var(--mono)}
+.hidden{display:none!important}
+.section-title{font-size:12px;font-weight:700;color:var(--ink3);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+
+/* ─── PRINT STYLES ─── */
+@media print{
+  .sidebar,.topbar,.page-hd-actions,.no-print{display:none!important}
+  .content{padding:0;overflow:visible}
+  body{font-size:10pt}
+  table{page-break-inside:auto}
+  tr{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ LOGIN ═══ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-bg"><div class="login-dots"></div></div>
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-icon"><i class="fas fa-flask"></i></div>
+      <div class="login-title">คนตัวหอม ERP</div>
+      <div class="login-sub">ระบบบริหารจัดการโรงงานเครื่องสำอาง v2.5</div>
+    </div>
+    <div class="login-field">
+      <label class="login-label">ชื่อผู้ใช้</label>
+      <input class="login-input" id="uname" type="text" value="admin" placeholder="Username" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label class="login-label">รหัสผ่าน</label>
+      <div style="position:relative">
+        <input class="login-input" id="upass" type="password" value="1234" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:44px">
+        <button type="button" id="togglePass" onclick="togglePassword()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0;display:flex;align-items:center;justify-content:center;width:24px;height:24px;transition:color .2s" title="แสดง/ซ่อนรหัสผ่าน">
+          <i class="fas fa-eye" id="eyeIcon"></i>
+        </button>
+      </div>
+    </div>
+    <div class="login-row"><input type="checkbox" id="remember" checked><label for="remember">จดจำการเข้าสู่ระบบ</label></div>
+    <button class="login-btn" onclick="doLogin()"><i class="fas fa-arrow-right-to-bracket"></i> เข้าสู่ระบบ</button>
+    <div class="login-hint">Demo: admin / 1234 &nbsp;|&nbsp; GMP & ISO Certified</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ APP ═══ -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <div class="sb-logo"><i class="fas fa-flask"></i></div>
+      <div class="sb-brand">
+        <div class="sb-brand-name">คนตัวหอม ERP</div>
+        <div class="sb-brand-ver">v2.5 · GMP Certified</div>
+      </div>
+    </div>
+    <div class="sb-nav" id="sbNav">
+      <div class="sb-section-label">หลัก</div>
+      <div class="sb-item active" data-page="dashboard"><i class="fas fa-gauge-high"></i><span class="sb-item-label">Dashboard</span></div>
+      <div class="sb-item" data-page="notifications"><i class="fas fa-bell"></i><span class="sb-item-label">การแจ้งเตือน</span><span class="sb-badge">7</span></div>
+
+      <div class="sb-section-label">คลังสินค้า</div>
+      <div class="sb-item" data-page="rawmaterial"><i class="fas fa-vials"></i><span class="sb-item-label">วัตถุดิบ</span></div>
+      <div class="sb-item" data-page="equipment"><i class="fas fa-boxes-stacked"></i><span class="sb-item-label">อุปกรณ์การผลิต</span></div>
+      <div class="sb-item" data-page="finishedgoods"><i class="fas fa-box-open"></i><span class="sb-item-label">สินค้าสำเร็จรูป</span></div>
+
+      <div class="sb-section-label">สูตรการผลิต</div>
+      <div class="sb-item" data-page="formula"><i class="fas fa-prescription-bottle-medical"></i><span class="sb-item-label">สูตรส่ง อย.</span></div>
+      <div class="sb-item" data-page="factoryformula"><i class="fas fa-industry"></i><span class="sb-item-label">สูตรโรงงาน</span></div>
+
+      <div class="sb-section-label">การผลิต</div>
+      <div class="sb-item" data-page="mo"><i class="fas fa-file-lines"></i><span class="sb-item-label">ใบสั่งผลิต (MO)</span></div>
+      <div class="sb-item" data-page="withdraw"><i class="fas fa-hand-holding-droplet"></i><span class="sb-item-label">เบิกวัตถุดิบ</span></div>
+      <div class="sb-item" data-page="ferment"><i class="fas fa-hourglass-half"></i><span class="sb-item-label">ระบบหมักบ่ม</span></div>
+      <div class="sb-item" data-page="prodlog"><i class="fas fa-clipboard-list"></i><span class="sb-item-label">Production Log</span></div>
+
+      <div class="sb-section-label">QC & คุณภาพ</div>
+      <div class="sb-item" data-page="qc"><i class="fas fa-microscope"></i><span class="sb-item-label">ตรวจ QC</span></div>
+      <div class="sb-item" data-page="waste"><i class="fas fa-triangle-exclamation"></i><span class="sb-item-label">บันทึกของเสีย</span></div>
+      <div class="sb-item" data-page="closeorder"><i class="fas fa-flag-checkered"></i><span class="sb-item-label">ปิดงานผลิต</span></div>
+
+      <div class="sb-section-label">เอกสาร & รายงาน</div>
+      <div class="sb-item" data-page="approvals"><i class="fas fa-stamp"></i><span class="sb-item-label">อนุมัติเอกสาร</span><span class="sb-badge">3</span></div>
+      <div class="sb-item" data-page="documents"><i class="fas fa-print"></i><span class="sb-item-label">เอกสาร A4</span></div>
+      <div class="sb-item" data-page="reports"><i class="fas fa-chart-bar"></i><span class="sb-item-label">รายงาน</span></div>
+
+      <div class="sb-section-label">ระบบ</div>
+      <div class="sb-item" data-page="auditlog"><i class="fas fa-clock-rotate-left"></i><span class="sb-item-label">Audit Trail</span></div>
+      <div class="sb-item" data-page="users"><i class="fas fa-users-gear"></i><span class="sb-item-label">จัดการผู้ใช้</span></div>
+    </div>
+    <div class="sb-footer">
+      <div class="sb-user" onclick="nav('profile')">
+        <div class="sb-avatar" id="sbAvatar">สม</div>
+        <div class="sb-user-info">
+          <div class="sb-user-name" id="sbUserName">สมชาย ใจดี</div>
+          <div class="sb-user-role" id="sbUserRole">Super Admin</div>
+        </div>
+      </div>
+      <div style="height:1px;background:rgba(255,255,255,.07);margin:8px 0"></div>
+      <button class="sb-logout-btn" onclick="doLogout()">
+        <i class="fas fa-arrow-right-from-bracket"></i>
+        <span class="sb-logout-label">ออกจากระบบ</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <button class="tb-toggle" id="sidebarToggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+      <div class="tb-breadcrumb">
+        <span class="tb-bc-main" id="pageTitle">Dashboard</span>
+        <span class="tb-bc-sep">›</span>
+        <span class="tb-bc-sub" id="pageSub">ภาพรวมระบบ</span>
+      </div>
+      <div class="tb-right">
+        <div class="tb-time" id="clock">--:--:--</div>
+        <div class="tb-conn"><div class="tb-conn-dot"></div>Google Sheets</div>
+        <div class="tb-btn" title="สแกน QR"><i class="fas fa-qrcode"></i></div>
+        <div class="tb-btn" title="พิมพ์" onclick="nav('documents')"><i class="fas fa-print"></i></div>
+        <div class="tb-btn" title="Export Excel"><i class="fas fa-file-excel"></i></div>
+        <div class="tb-btn" onclick="nav('notifications')" title="แจ้งเตือน"><i class="fas fa-bell"></i><div class="tb-notif-dot"></div></div>
+      </div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════ STATE ═══════════════════════
+let sidebarCollapsed = false;
+const PAGE_TITLES = {
+  dashboard:'Dashboard',notifications:'การแจ้งเตือน',rawmaterial:'คลังวัตถุดิบ',
+  equipment:'คลังอุปกรณ์',finishedgoods:'คลังสินค้าสำเร็จรูป',formula:'สูตรส่ง อย.',
+  factoryformula:'สูตรโรงงาน',mo:'ใบสั่งผลิต',withdraw:'เบิกวัตถุดิบ',
+  ferment:'ระบบหมักบ่ม',prodlog:'Production Log',qc:'ตรวจสอบ QC',
+  waste:'บันทึกของเสีย',closeorder:'ปิดงานผลิต',approvals:'อนุมัติเอกสาร',
+  documents:'เอกสาร A4',reports:'รายงาน',auditlog:'Audit Trail',
+  users:'จัดการผู้ใช้',profile:'โปรไฟล์ผู้ใช้'
+};
+
+// ═══════════════════════ LOGIN ═══════════════════════
+function doLogin(){
+  const u=document.getElementById('uname').value;
+  const p=document.getElementById('upass').value;
+  if(!u||!p){alert('กรุณากรอกข้อมูลให้ครบ');return;}
+  document.getElementById('loginScreen').style.display='none';
+  const app=document.getElementById('app');
+  app.style.display='flex';
+  setTimeout(()=>app.classList.add('visible'),10);
+  nav('dashboard');
+  startClock();
+}
+
+// ═══════════════════════ CLOCK ═══════════════════════
+function startClock(){
+  setInterval(()=>{
+    const now=new Date();
+    document.getElementById('clock').textContent=now.toLocaleTimeString('th-TH',{hour12:false});
+  },1000);
+}
+
+// ═══════════════════════ SIDEBAR ═══════════════════════
+function toggleSidebar(){
+  sidebarCollapsed=!sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
+}
+
+// ═══════════════════════ NAVIGATION ═══════════════════════
+function nav(page){
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll(`.sb-item[data-page="${page}"]`).forEach(n=>n.classList.add('active'));
+  document.getElementById('pageTitle').textContent = PAGE_TITLES[page]||page;
+  document.getElementById('pageSub').textContent = getSubtitle(page);
+  const c=document.getElementById('content');
+  c.innerHTML='';
+  const fn=window['page_'+page];
+  if(fn) fn(c); else c.innerHTML=`<div style="padding:60px;text-align:center;color:var(--light)"><i class="fas fa-wrench" style="font-size:40px;display:block;margin-bottom:12px;opacity:.3"></i><div style="font-size:14px">กำลังพัฒนา: ${PAGE_TITLES[page]||page}</div></div>`;
+}
+
+function getSubtitle(p){
+  const m={dashboard:'ภาพรวมระบบ Real-Time',rawmaterial:'จัดการวัตถุดิบ',equipment:'คลังอุปกรณ์และบรรจุภัณฑ์',finishedgoods:'สินค้าพร้อมจำหน่าย',formula:'สูตรมาตรฐาน GMP',factoryformula:'ขั้นตอนการผลิต',mo:'Manufacturing Order',withdraw:'ตัดสต๊อกอัตโนมัติ',ferment:'นับถอยหลังอัตโนมัติ',prodlog:'บันทึกกระบวนการผลิต',qc:'Quality Control',waste:'บันทึกของเสีย',closeorder:'ปิดงานและเพิ่มสต๊อก FG',approvals:'ลายเซ็นดิจิทัล',documents:'พิมพ์เอกสาร A4',reports:'Export PDF/Excel/CSV',auditlog:'บันทึกทุก Activity',users:'สิทธิ์การใช้งาน'};
+  return m[p]||'';
+}
+
+// Sidebar click
+document.getElementById('sbNav').addEventListener('click',e=>{
+  const item=e.target.closest('.sb-item');
+  if(item&&item.dataset.page) nav(item.dataset.page);
+});
+
+// ═══════════════════════ MODAL HELPER ═══════════════════════
+function openModal(html,large=false){
+  const o=document.createElement('div');
+  o.className='modal-overlay';
+  o.innerHTML=`<div class="modal${large?' modal-lg':''}">${html}</div>`;
+  o.addEventListener('click',e=>{if(e.target===o)o.remove();});
+  document.body.appendChild(o);
+  return o;
+}
+function closeModal(){document.querySelector('.modal-overlay')?.remove();}
+
+// ═══════════════════════ DASHBOARD ═══════════════════════
+window.page_dashboard = function(c){
+  c.innerHTML=`
+  <div class="page-hd">
+    <div>
+      <div class="page-title">Dashboard Real-Time</div>
+      <div class="page-sub">อัปเดต: ${new Date().toLocaleString('th-TH')} · เชื่อมต่อ Google Sheets <span style="color:var(--green)">●</span></div>
+    </div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-rotate"></i> รีเฟรช</button>
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-file-excel" style="color:#217346"></i> Export</button>
+    </div>
+  </div>
+  <div class="kpi-row">
+    ${[
+      {label:'วัตถุดิบทั้งหมด',val:'284',foot:'15 ใกล้หมด',icon:'fa-vials',color:'#1558c0'},
+      {label:'สินค้าสำเร็จรูป',val:'12,450',foot:'8 SKU · 3 คลัง',icon:'fa-box-open',color:'#16a34a'},
+      {label:'งานผลิตวันนี้',val:'5',foot:'MO · 3 กำลังผลิต',icon:'fa-industry',color:'#d97706'},
+      {label:'รออนุมัติ',val:'3',foot:'เอกสาร',icon:'fa-stamp',color:'#7c3aed'},
+      {label:'งานเสร็จแล้ว',val:'18',foot:'สัปดาห์นี้',icon:'fa-circle-check',color:'#0891b2'},
+      {label:'งานล่าช้า',val:'2',foot:'เกินกำหนด',icon:'fa-circle-exclamation',color:'#dc2626'},
+    ].map(k=>`
+    <div class="kpi" onclick="nav('${k.label.includes('วัตถุดิบ')?'rawmaterial':k.label.includes('สินค้า')?'finishedgoods':k.label.includes('ผลิต')?'mo':k.label.includes('อนุมัติ')?'approvals':'mo'}')">
+      <div class="kpi-accent" style="background:${k.color}"></div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color}">${k.val}</div>
+      <div class="kpi-foot">${k.foot}</div>
+      <i class="fas ${k.icon} kpi-icon"></i>
+    </div>`).join('')}
+  </div>
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-head"><div class="card-title"><i class="fas fa-chart-column" style="color:var(--blue)"></i>การผลิตรายเดือน</div><span class="badge badge-blue">ปี 2568</span></div>
+      <div class="card-body"><canvas id="prodChart" height="150"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title"><i class="fas fa-chart-pie" style="color:var(--green)"></i>การใช้วัตถุดิบ Top 5</div><span class="badge badge-green">มกราคม</span></div>
+      <div class="card-body"><canvas id="matChart" height="150"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title"><i class="fas fa-arrow-trend-down" style="color:var(--amber)"></i>สินค้าคงเหลือน้อยสุด</div>
+      <div class="flex gap-6">
+        <button class="btn btn-ghost btn-xs" onclick="sortLS('asc')"><i class="fas fa-arrow-up-1-9"></i> น้อย→มาก</button>
+        <button class="btn btn-ghost btn-xs" onclick="sortLS('desc')"><i class="fas fa-arrow-down-9-1"></i> มาก→น้อย</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>SKU</th><th>ชื่อวัตถุดิบ</th><th>คงเหลือ</th><th>หน่วย</th><th>จุดสั่งซื้อ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <tbody id="lsBody"></tbody>
+      </table>
+    </div>
+  </div>`;
+  initDashCharts();
+  renderLowStock('asc');
+};
+
+const LS_DATA=[
+  {sku:'RM-001',name:'น้ำมันกุหลาบ (Rose Oil)',qty:2.5,unit:'กก.',min:5,st:'danger'},
+  {sku:'RM-003',name:'Alcohol 95%',qty:8,unit:'ลิตร',min:20,st:'danger'},
+  {sku:'RM-005',name:'Fragrance Jasmine',qty:12,unit:'กก.',min:15,st:'warning'},
+  {sku:'RM-008',name:'Fixative Ambergris',qty:18,unit:'กก.',min:10,st:'ok'},
+  {sku:'RM-012',name:'DPG Solvent',qty:45,unit:'กก.',min:20,st:'ok'},
+];
+window.sortLS=d=>renderLowStock(d);
+function renderLowStock(dir){
+  const sorted=[...LS_DATA].sort((a,b)=>dir==='asc'?a.qty-b.qty:b.qty-a.qty);
+  const b=document.getElementById('lsBody');if(!b)return;
+  b.innerHTML=sorted.map(r=>{
+    const pct=Math.min(r.qty/r.min*100,100);
+    const col=r.st==='danger'?'var(--red)':r.st==='warning'?'var(--amber)':'var(--green)';
+    return `<tr>
+      <td><span class="cell-code">${r.sku}</span></td>
+      <td><strong>${r.name}</strong></td>
+      <td><div class="prog-wrap"><span style="font-weight:700;color:${col};min-width:34px">${r.qty}</span><div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${col}"></div></div></div></td>
+      <td>${r.unit}</td><td>${r.min} ${r.unit}</td>
+      <td><span class="badge badge-${r.st==='danger'?'red':r.st==='warning'?'amber':'green'}">${r.st==='danger'?'วิกฤต':r.st==='warning'?'ต่ำ':'ปกติ'}</span></td>
+      <td><button class="btn btn-ghost btn-xs"><i class="fas fa-cart-plus"></i> สั่งซื้อ</button></td>
+    </tr>`;
+  }).join('');
+}
+function initDashCharts(){
+  const p=document.getElementById('prodChart');
+  const m=document.getElementById('matChart');
+  if(!p||!m)return;
+  new Chart(p,{type:'bar',data:{labels:['ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.','ม.ค.'],datasets:[{label:'ผลิต',data:[4200,3800,5100,4600,5800,6200,5400],backgroundColor:'rgba(21,88,192,.75)',borderRadius:5,borderSkipped:false},{label:'QC Pass',data:[4100,3700,5000,4500,5700,6100,5300],backgroundColor:'rgba(22,163,74,.65)',borderRadius:5,borderSkipped:false}]},options:{responsive:true,plugins:{legend:{labels:{font:{size:11},boxWidth:10}}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.04)'},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  new Chart(m,{type:'doughnut',data:{labels:['Alcohol 95%','DPG Solvent','Rose Oil','Jasmine','Fixative'],datasets:[{data:[320,180,95,72,45],backgroundColor:['#1558c0','#16a34a','#d97706','#7c3aed','#0891b2'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10,padding:8}}}}});
+}
+
+// ═══════════════════════ RAW MATERIAL ═══════════════════════
+window.page_rawmaterial = function(c){
+  const rows=[
+    {sku:'RM-001',name:'น้ำมันกุหลาบ',en:'Rose Oil',cas:'8007-01-0',lot:'L2401',exp:'2025-12-31',qty:2.5,unit:'กก.',st:'danger'},
+    {sku:'RM-002',name:'ลาเวนเดอร์ EO',en:'Lavender Essential Oil',cas:'8000-28-0',lot:'L2402',exp:'2026-06-30',qty:25,unit:'กก.',st:'ok'},
+    {sku:'RM-003',name:'Alcohol 95%',en:'Ethanol 95%',cas:'64-17-5',lot:'L2403',exp:'2026-12-31',qty:8,unit:'ลิตร',st:'danger'},
+    {sku:'RM-004',name:'DPG Solvent',en:'Dipropylene Glycol',cas:'25265-71-8',lot:'L2404',exp:'2027-03-31',qty:45,unit:'กก.',st:'ok'},
+    {sku:'RM-005',name:'Fragrance Jasmine',en:'Jasmine Fragrance',cas:'N/A',lot:'L2405',exp:'2026-09-30',qty:12,unit:'กก.',st:'warning'},
+    {sku:'RM-006',name:'Fixative Ambergris',en:'Ambergris Fixative',cas:'8030-87-3',lot:'L2406',exp:'2028-01-31',qty:4.8,unit:'กก.',st:'warning'},
+  ];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-vials" style="color:var(--blue);margin-right:7px"></i>คลังวัตถุดิบ</div><div class="page-sub">284 รายการ · Real-Time Sync Google Sheets</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-qrcode"></i> สแกน</button>
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-file-excel" style="color:#217346"></i> Export</button>
+      <button class="btn btn-primary btn-sm" onclick="page_rawmaterial._addModal()"><i class="fas fa-plus"></i> เพิ่มวัตถุดิบ</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="filter-bar">
+      <div class="search-wrap"><i class="fas fa-magnifying-glass"></i><input placeholder="ค้นหา SKU, ชื่อ, CAS Number..."></div>
+      <select class="filter-select"><option>ทุกสถานะ</option><option>ปกติ</option><option>ต่ำ</option><option>วิกฤต</option></select>
+      <select class="filter-select"><option>ทุก Supplier</option><option>Firmenich</option><option>IFF</option><option>Givaudan</option></select>
+      <select class="filter-select"><option>ทุก Category</option><option>Fragrance</option><option>Alcohol</option><option>Solvent</option></select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>SKU ↕</th><th>ชื่อวัตถุดิบ</th><th>CAS Number</th><th>Lot</th><th>หมดอายุ</th><th>คงเหลือ</th><th>QR/BC</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td><span class="cell-code">${r.sku}</span></td>
+            <td><div style="font-weight:700;font-size:12px">${r.name}</div><div style="font-size:10px;color:var(--muted)">${r.en}</div></td>
+            <td><span class="font-mono" style="font-size:11px;color:var(--ink3)">${r.cas}</span></td>
+            <td><span class="cell-lot">${r.lot}</span></td>
+            <td style="font-size:11px;color:${new Date(r.exp)<new Date(Date.now()+30*86400000)?'var(--red)':'var(--muted)'}">${r.exp}</td>
+            <td><span style="font-weight:700;color:${r.st==='danger'?'var(--red)':r.st==='warning'?'var(--amber)':'var(--ink)'}">${r.qty} ${r.unit}</span></td>
+            <td><div class="flex gap-6"><i class="fas fa-qrcode" style="color:var(--blue);cursor:pointer;font-size:16px" title="QR Code"></i><i class="fas fa-barcode" style="color:var(--muted);cursor:pointer;font-size:16px" title="Barcode"></i></div></td>
+            <td><span class="badge badge-${r.st==='danger'?'red':r.st==='warning'?'amber':'green'}">${r.st==='danger'?'วิกฤต':r.st==='warning'?'ต่ำ':'ปกติ'}</span></td>
+            <td><div class="flex gap-6">
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-clock-rotate-left"></i></button>
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-pen"></i></button>
+              <button class="btn btn-xs btn-danger"><i class="fas fa-trash"></i></button>
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+page_rawmaterial._addModal = function(){
+  openModal(`
+  <div class="modal-hd"><div class="modal-title"><i class="fas fa-plus-circle" style="color:var(--blue)"></i>เพิ่มวัตถุดิบใหม่</div><button class="close-btn" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">SKU</label><input class="form-control" placeholder="RM-XXX"></div>
+      <div class="form-group"><label class="form-label">ชื่อภาษาไทย</label><input class="form-control" placeholder="ชื่อวัตถุดิบ"></div>
+      <div class="form-group"><label class="form-label">ชื่อภาษาอังกฤษ</label><input class="form-control" placeholder="English name"></div>
+      <div class="form-group"><label class="form-label">CAS Number</label><input class="form-control" placeholder="XXXXX-XX-X"></div>
+      <div class="form-group"><label class="form-label">Supplier</label><select class="form-control"><option>Firmenich</option><option>IFF</option><option>Givaudan</option></select></div>
+      <div class="form-group"><label class="form-label">ประเทศต้นทาง</label><input class="form-control" placeholder="France"></div>
+      <div class="form-group"><label class="form-label">Lot Number</label><input class="form-control" placeholder="L2401"></div>
+      <div class="form-group"><label class="form-label">วันผลิต</label><input class="form-control" type="date"></div>
+      <div class="form-group"><label class="form-label">วันหมดอายุ</label><input class="form-control" type="date"></div>
+      <div class="form-group"><label class="form-label">ปริมาณ</label><input class="form-control" type="number" placeholder="0.000"></div>
+      <div class="form-group"><label class="form-label">หน่วย</label><select class="form-control"><option>กก.</option><option>กรัม</option><option>ลิตร</option><option>มล.</option></select></div>
+      <div class="form-group"><label class="form-label">จุดสั่งซื้อ</label><input class="form-control" type="number" placeholder="0.000"></div>
+      <div class="form-group"><label class="form-label">เลข อย.</label><input class="form-control" placeholder="xx-x-xxxx"></div>
+      <div class="form-group"><label class="form-label">เลขสรรพสามิต</label><input class="form-control" placeholder="xx-xxxx"></div>
+    </div>
+  </div>
+  <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary"><i class="fas fa-floppy-disk"></i> บันทึก</button></div>`);
+};
+
+// ═══════════════════════ MO ═══════════════════════
+window.page_mo = function(c){
+  const mos=[
+    {id:'MO-2401-001',name:'Parfum Rose Elixir',size:'50ml',cust:'บริษัท ABC',batch:'B2401-01',qty:'2,000 ขวด',deliver:'15/02/67',status:'production'},
+    {id:'MO-2401-002',name:'Jasmine Dream EDP',size:'100ml',cust:'ห้าง XYZ',batch:'B2401-02',qty:'5,000 ขวด',deliver:'20/02/67',status:'waiting'},
+    {id:'MO-2401-003',name:'EDP Oud Collection',size:'30ml',cust:'Online',batch:'B2401-03',qty:'500 ขวด',deliver:'30/01/67',status:'late'},
+    {id:'MO-2401-004',name:'Body Mist Summer',size:'200ml',cust:'Retail ABC',batch:'B2401-04',qty:'3,000 ขวด',deliver:'28/02/67',status:'draft'},
+  ];
+  const statusCfg={production:{label:'กำลังผลิต',cls:'badge-blue'},waiting:{label:'รออนุมัติ',cls:'badge-amber'},late:{label:'ล่าช้า',cls:'badge-red'},draft:{label:'Draft',cls:'badge-gray'},approved:{label:'อนุมัติ',cls:'badge-green'},qc:{label:'QC',cls:'badge-teal'}};
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-file-lines" style="color:var(--blue);margin-right:7px"></i>ใบสั่งผลิต (Manufacturing Order)</div><div class="page-sub">สร้างได้หลายกลิ่นในใบงานเดียว · Workflow 7 ขั้นตอน</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-print"></i> พิมพ์</button>
+      <button class="btn btn-primary btn-sm" onclick="page_mo._new()"><i class="fas fa-plus"></i> สร้าง MO ใหม่</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="filter-bar">
+      <div class="search-wrap"><i class="fas fa-magnifying-glass"></i><input placeholder="ค้นหา MO, ลูกค้า, สินค้า..."></div>
+      <select class="filter-select"><option>ทุกสถานะ</option><option>Draft</option><option>รออนุมัติ</option><option>อนุมัติ</option><option>กำลังผลิต</option><option>QC</option><option>ปิดงาน</option></select>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>เลข MO</th><th>สินค้า</th><th>ลูกค้า</th><th>Batch</th><th>จำนวน</th><th>ส่งมอบ</th><th>Workflow</th><th>จัดการ</th></tr></thead>
+        <tbody>
+          ${mos.map(m=>`<tr>
+            <td><span class="cell-code">${m.id}</span></td>
+            <td><div style="font-weight:700">${m.name}</div><div style="font-size:10px;color:var(--muted)">${m.size}</div></td>
+            <td style="font-size:12px">${m.cust}</td>
+            <td><span class="cell-lot">${m.batch}</span></td>
+            <td style="font-size:12px">${m.qty}</td>
+            <td style="font-size:11px;color:${m.status==='late'?'var(--red)':'var(--muted)'}">${m.deliver}${m.status==='late'?' ⚠':''}</td>
+            <td><span class="badge ${statusCfg[m.status]?.cls||'badge-gray'}">${statusCfg[m.status]?.label||m.status}</span></td>
+            <td><div class="flex gap-6">
+              <button class="btn btn-ghost btn-xs" onclick="page_mo._detail('${m.id}','${m.name}','${m.status}')"><i class="fas fa-eye"></i> ดู</button>
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-print"></i></button>
+              ${m.status==='waiting'?`<button class="btn btn-xs btn-success"><i class="fas fa-check"></i> อนุมัติ</button>`:''}
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+page_mo._new = function(){
+  openModal(`
+  <div class="modal-hd"><div class="modal-title"><i class="fas fa-plus-circle" style="color:var(--blue)"></i>สร้างใบสั่งผลิตใหม่</div><button class="close-btn" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">ชื่อสินค้า</label><input class="form-control" placeholder="ชื่อสินค้า"></div>
+      <div class="form-group"><label class="form-label">ประเภทสินค้า</label><select class="form-control"><option>น้ำหอม EDP</option><option>น้ำหอม EDT</option><option>Body Mist</option><option>เครื่องสำอาง</option></select></div>
+      <div class="form-group"><label class="form-label">ลูกค้า</label><input class="form-control" placeholder="ชื่อลูกค้า"></div>
+      <div class="form-group"><label class="form-label">Sales Order</label><input class="form-control" placeholder="SO-XXXX-XXX"></div>
+      <div class="form-group"><label class="form-label">จำนวนผลิต</label><input class="form-control" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">หน่วย</label><select class="form-control"><option>ขวด</option><option>ชิ้น</option><option>กล่อง</option></select></div>
+      <div class="form-group"><label class="form-label">วันที่บรรจุ</label><input class="form-control" type="date"></div>
+      <div class="form-group"><label class="form-label">วันส่งมอบ</label><input class="form-control" type="date"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="section-title"><i class="fas fa-concierge-bell"></i>งานบริการลูกค้า</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      ${['ออกแบบขวด','ออกแบบฉลาก','ออกแบบกล่อง','ออกแบบสูตร','ขอเลข อย.','ขอเลขสรรพสามิต','ออกใบกำกับภาษี','เอกสารรับรองอื่นๆ'].map(s=>`<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:20px;transition:all .15s" onmouseover="this.style.borderColor='var(--blue)';" onmouseout="this.style.borderColor='var(--border)'"><input type="checkbox"> ${s}</label>`).join('')}
+    </div>
+  </div>
+  <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary"><i class="fas fa-floppy-disk"></i> สร้าง Draft</button></div>`,true);
+};
+page_mo._detail = function(id,name,status){
+  const steps=['draft','waiting','approved','production','qc','completed','closed'];
+  const statusIdx={'draft':0,'waiting':1,'approved':2,'production':3,'qc':4,'completed':5,'closed':6};
+  const cur=statusIdx[status]||3;
+  const stepLabels=['Draft','รออนุมัติ','อนุมัติ','ผลิต','QC','เสร็จสิ้น','ปิดงาน'];
+  openModal(`
+  <div class="modal-hd"><div class="modal-title"><i class="fas fa-file-lines" style="color:var(--blue)"></i>${id} · ${name}</div><button class="close-btn" onclick="closeModal()"><i class="fas fa-xmark"></i></button></div>
+  <div class="modal-body">
+    <div class="wf-row">
+      ${stepLabels.map((l,i)=>`<div class="wf-step ${i<cur?'done':i===cur?'active':''}"><div class="wf-circle">${i<cur?'<i class="fas fa-check"></i>':i+1}</div><div class="wf-lbl">${l}</div></div>`).join('')}
+    </div>
+    <div class="divider"></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">ชื่อสินค้า</label><input class="form-control" value="${name}" readonly></div>
+      <div class="form-group"><label class="form-label">ลูกค้า</label><input class="form-control" value="บริษัท ABC จำกัด" readonly></div>
+      <div class="form-group"><label class="form-label">Batch Number</label><input class="form-control" value="B2401-01" readonly></div>
+      <div class="form-group"><label class="form-label">Sales Order</label><input class="form-control" value="SO-2401-055" readonly></div>
+      <div class="form-group"><label class="form-label">วันที่บรรจุ</label><input class="form-control" type="date" value="2024-02-10"></div>
+      <div class="form-group"><label class="form-label">วันส่งมอบ</label><input class="form-control" type="date" value="2024-02-15"></div>
+    </div>
+  </div>
+  <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal()">ปิด</button><button class="btn btn-ghost btn-sm"><i class="fas fa-print"></i> พิมพ์</button><button class="btn btn-primary">ส่งต่อ QC <i class="fas fa-arrow-right"></i></button></div>`,true);
+};
+
+// ═══════════════════════ FORMULA ═══════════════════════
+window.page_formula = function(c){
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-prescription-bottle-medical" style="color:var(--blue);margin-right:7px"></i>สูตรส่ง อย.</div><div class="page-sub">คำนวณ % อัตโนมัติ · ต้องรวม = 100.00%</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-print"></i> พิมพ์สูตร</button>
+      <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> สร้างสูตรใหม่</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title"><i class="fas fa-flask" style="color:var(--blue)"></i>FM-001 · Parfum Rose Elixir Rev.3</div>
+      <div class="flex gap-6"><span class="badge badge-gray">เริ่มใช้ 01/01/2567</span><span class="badge badge-green"><i class="fas fa-circle-check"></i> Active</span></div>
+    </div>
+    <div class="card-body">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>รหัส</th><th>ชื่อวัตถุดิบ</th><th>% โดยน้ำหนัก</th><th>กรัม / 1 กก.</th><th>หน่วย</th><th></th></tr></thead>
+          <tbody id="fmBody">
+            ${[
+              ['RM-001','Rose Oil',18.5],[' RM-002','Lavender EO',5.0],['RM-003','Alcohol 95%',70.0],['RM-004','DPG Solvent',6.5]
+            ].map(([sku,name,pct],i)=>`<tr>
+              <td style="color:var(--muted);font-weight:700">${i+1}</td>
+              <td><span class="cell-code">${sku.trim()}</span></td>
+              <td style="font-weight:600">${name}</td>
+              <td><input type="number" class="form-control" style="width:90px" value="${pct}" oninput="calcFm()"></td>
+              <td class="fm-qty-${i+1}" style="font-family:var(--mono)">${(pct*10).toFixed(1)}</td>
+              <td>กรัม</td>
+              <td><button class="btn btn-xs btn-danger"><i class="fas fa-trash"></i></button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="formula-pct-bar" id="fmTotal">
+        <span style="font-weight:600;font-size:12px;color:var(--muted)">รวม %</span>
+        <span class="pct-total pct-ok" id="fmTotalVal">100.0% <i class="fas fa-circle-check"></i></span>
+      </div>
+      <button class="btn btn-ghost btn-sm mt-12"><i class="fas fa-plus" style="color:var(--green)"></i> เพิ่มวัตถุดิบ</button>
+    </div>
+  </div>`;
+  window.calcFm=function(){
+    const inputs=document.querySelectorAll('#fmBody input[type=number]');
+    let t=0;inputs.forEach(i=>t+=parseFloat(i.value)||0);
+    const el=document.getElementById('fmTotalVal');
+    if(!el)return;
+    const ok=Math.abs(t-100)<0.01;
+    el.innerHTML=t.toFixed(1)+'% <i class="fas fa-circle-'+(ok?'check"></i>':'xmark"></i>');
+    el.className='pct-total '+(ok?'pct-ok':'pct-bad');
+  };
+};
+
+// ═══════════════════════ QC ═══════════════════════
+window.page_qc = function(c){
+  const items=[
+    {name:'กลิ่น',icon:'fa-wind'},{name:'ความสะอาด',icon:'fa-soap'},
+    {name:'การรั่วซึม',icon:'fa-droplet'},{name:'ฉลาก',icon:'fa-tag'},
+    {name:'หัวสเปรย์',icon:'fa-spray-can'},{name:'วันที่ผลิต',icon:'fa-calendar-days'},
+    {name:'กล่อง',icon:'fa-box'},{name:'ซีล',icon:'fa-lock'},
+  ];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-microscope" style="color:var(--blue);margin-right:7px"></i>ตรวจสอบ QC</div><div class="page-sub">Batch: B2401-01 · Parfum Rose Elixir · 2,000 ขวด</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-print"></i> QC Report</button>
+      <button class="btn btn-primary btn-sm" onclick="submitQC()"><i class="fas fa-check-double"></i> บันทึก QC</button>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-num" style="color:var(--blue)">2,000</div><div class="stat-lbl">ตัวอย่างทั้งหมด</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--ink)" id="qcPassCt">0</div><div class="stat-lbl">ผ่าน</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)" id="qcFailCt">0</div><div class="stat-lbl">ไม่ผ่าน</div></div>
+    <div class="stat-card"><div class="stat-num">SMP-2401-001</div><div class="stat-lbl">Sample ID</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="card-title"><i class="fas fa-clipboard-check" style="color:var(--blue)"></i>QC Checklist</div><span class="badge badge-amber" id="qcStatus"><i class="fas fa-clock"></i> กำลังตรวจ</span></div>
+    <div class="card-body">
+      <div class="qc-grid">
+        ${items.map((item,i)=>`
+        <div class="qc-item" id="qci-${i}">
+          <div class="qc-item-hd"><div class="qc-item-icon"><i class="fas ${item.icon}"></i></div><div class="qc-item-name">${item.name}</div></div>
+          <div class="qc-btns">
+            <button class="qc-btn pass" onclick="qcVote(${i},'pass',this)"><i class="fas fa-check"></i> PASS</button>
+            <button class="qc-btn fail" onclick="qcVote(${i},'fail',this)"><i class="fas fa-times"></i> FAIL</button>
+          </div>
+          <textarea class="qc-note" rows="2" placeholder="หมายเหตุ..."></textarea>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+  const votes={};
+  window.qcVote=function(i,type,btn){
+    votes[i]=type;
+    btn.closest('.qc-btns').querySelectorAll('.qc-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const card=document.getElementById('qci-'+i);
+    card.classList.toggle('passed',type==='pass');
+    card.classList.toggle('failed',type==='fail');
+    const pass=Object.values(votes).filter(v=>v==='pass').length;
+    const fail=Object.values(votes).filter(v=>v==='fail').length;
+    const pc=document.getElementById('qcPassCt');const fc=document.getElementById('qcFailCt');
+    if(pc)pc.textContent=pass;if(fc)fc.textContent=fail;
+    const st=document.getElementById('qcStatus');
+    if(st&&Object.keys(votes).length===8){
+      if(fail===0){st.innerHTML='<i class="fas fa-circle-check"></i> ผ่านทุกรายการ';st.className='badge badge-green';}
+      else{st.innerHTML=`<i class="fas fa-circle-xmark"></i> ไม่ผ่าน ${fail} รายการ`;st.className='badge badge-red';}
+    }
+  };
+  window.submitQC=function(){alert('บันทึก QC สำเร็จ!\nกด OK เพื่อส่งต่อขั้นตอนปิดงาน');nav('closeorder');};
+};
+
+// ═══════════════════════ FERMENT ═══════════════════════
+window.page_ferment = function(c){
+  const items=[
+    {batch:'B2401-01',name:'Rose Elixir',days:30,done:22,type:'days'},
+    {batch:'B2401-02',name:'Jasmine Dream',days:21,done:21,type:'sample'},
+    {batch:'B2401-03',name:'Oud Collection',days:14,done:3,type:'days'},
+  ];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-hourglass-half" style="color:var(--blue);margin-right:7px"></i>ระบบหมักบ่ม</div><div class="page-sub">นับถอยหลังอัตโนมัติ · แจ้งเตือนเมื่อครบกำหนด</div></div>
+    <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> เพิ่มงานหมัก</button>
+  </div>
+  <div class="ferm-grid">
+    ${items.map(f=>{
+      const pct=Math.round(f.done/f.days*100);
+      const left=f.days-f.done;
+      const col=f.done>=f.days?'var(--green)':left<=3?'var(--red)':'var(--blue)';
+      return `<div class="ferm-card">
+        <div class="ferm-head">
+          <div><div class="ferm-title">${f.name}</div><div style="font-size:10px;color:var(--muted);font-family:var(--mono)">${f.batch}</div></div>
+          ${f.done>=f.days?'<span class="badge badge-green"><i class="fas fa-check"></i> ครบ</span>':left<=3?'<span class="badge badge-red"><i class="fas fa-bell"></i> ใกล้ครบ</span>':'<span class="badge badge-blue"><i class="fas fa-hourglass-half"></i> หมักอยู่</span>'}
+        </div>
+        <div class="ferm-body">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:11px"><span style="color:var(--muted)">ความคืบหน้า</span><span style="font-weight:700;font-family:var(--mono)">${f.done} / ${f.days} วัน</span></div>
+          <div style="height:7px;background:var(--surface3);border-radius:4px;overflow:hidden;margin-bottom:12px"><div style="width:${pct}%;height:100%;background:${col};border-radius:4px;transition:width .5s"></div></div>
+          ${f.type==='days'?`<div style="text-align:center;margin-bottom:12px">${f.done>=f.days?`<span class="badge badge-green" style="font-size:12px;padding:5px 14px">✅ ครบกำหนดแล้ว</span>`:`<div class="countdown"><i class="fas fa-hourglass-end"></i> เหลือ ${left} วัน</div>`}</div>`:`<div style="background:var(--amber-light);border:1px solid #fcd34d;border-radius:var(--radius);padding:9px;margin-bottom:12px;font-size:11px"><i class="fas fa-vial" style="color:var(--amber);margin-right:6px"></i><strong>รอเก็บตัวอย่างและอนุมัติ</strong></div>`}
+          <div class="flex gap-6">
+            <button class="btn btn-ghost btn-xs" style="flex:1"><i class="fas fa-eye"></i> รายละเอียด</button>
+            ${f.done>=f.days?`<button class="btn btn-xs btn-success" style="flex:1"><i class="fas fa-arrow-right"></i> ส่ง QC</button>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+};
+
+// ═══════════════════════ PRODUCTION LOG ═══════════════════════
+window.page_prodlog = function(c){
+  const steps=['Filling','Labeling','Boxing','Coding (วัน/เดือน/ปี)','Shrink Wrapping','Set Assembly'];
+  const icons=['fa-fill-drip','fa-tag','fa-box','fa-stamp','fa-film','fa-cubes'];
+  const done=[true,true,true,false,false,false];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-clipboard-list" style="color:var(--blue);margin-right:7px"></i>Production Log</div><div class="page-sub">MO-2401-001 · Rose Elixir · 2,000 ขวด</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-print"></i> พิมพ์ Log</button>
+      <button class="btn btn-primary btn-sm"><i class="fas fa-floppy-disk"></i> บันทึก</button>
+    </div>
+  </div>
+  <div class="card mb-12">
+    <div class="card-head"><div class="card-title"><i class="fas fa-users" style="color:var(--blue)"></i>ผู้เข้าร่วมผลิต</div></div>
+    <div class="card-body-sm">
+      <div class="flex gap-8" style="flex-wrap:wrap">
+        ${[['สมชาย','หัวหน้าผลิต'],['สมหญิง','พนักงานผลิต'],['วิชัย','QC'],['นิดา','บรรจุภัณฑ์']].map(([n,p])=>`
+        <div class="flex items-center gap-8" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius2);padding:7px 12px">
+          <div class="sb-avatar" style="width:30px;height:30px;font-size:11px">${n[0]}</div>
+          <div><div style="font-size:12px;font-weight:700">${n}</div><div style="font-size:10px;color:var(--muted)">${p}</div></div>
+          <i class="fas fa-signature" style="color:var(--blue);cursor:pointer;margin-left:4px" title="ลายเซ็น"></i>
+        </div>`).join('')}
+        <button class="btn btn-ghost btn-sm"><i class="fas fa-user-plus"></i> เพิ่ม</button>
+      </div>
+    </div>
+  </div>
+  <div class="card mb-12">
+    <div class="card-head"><div class="card-title"><i class="fas fa-cogs" style="color:var(--blue)"></i>วิธีบรรจุ</div></div>
+    <div class="card-body-sm">
+      <div class="flex gap-10">
+        <label class="flex items-center gap-8" style="cursor:pointer;font-size:13px"><input type="radio" name="fillm" checked style="accent-color:var(--blue)"> <i class="fas fa-robot" style="color:var(--blue)"></i> Machine Filling</label>
+        <label class="flex items-center gap-8" style="cursor:pointer;font-size:13px"><input type="radio" name="fillm" style="accent-color:var(--amber)"> <i class="fas fa-hand-paper" style="color:var(--amber)"></i> Manual Filling</label>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="card-title"><i class="fas fa-list-check" style="color:var(--blue)"></i>Production Checklist</div><span class="badge badge-blue" id="progBadge">3 / 6 เสร็จ</span></div>
+    <div class="card-body">
+      <div class="checklist">
+        ${steps.map((s,i)=>`
+        <div class="check-item ${done[i]?'checked':''}" onclick="toggleChk(this,${i})">
+          <div class="check-box">${done[i]?'✓':''}</div>
+          <i class="fas ${icons[i]}" style="color:${done[i]?'var(--green)':'var(--muted)'};width:16px"></i>
+          <span class="check-lbl">${s}</span>
+          ${done[i]?`<span class="check-meta">14:${32+i} · สมชาย <i class="fas fa-camera" style="cursor:pointer;color:var(--blue)" title="รูปภาพ"></i></span>`:`<span class="check-meta"><button class="btn btn-ghost btn-xs no-print"><i class="fas fa-camera"></i> รูป</button></span>`}
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+  const chkState=[...done];
+  window.toggleChk=function(el,i){
+    chkState[i]=!chkState[i];
+    el.classList.toggle('checked',chkState[i]);
+    el.querySelector('.check-box').textContent=chkState[i]?'✓':'';
+    const cnt=chkState.filter(Boolean).length;
+    const b=document.getElementById('progBadge');
+    if(b)b.textContent=`${cnt} / 6 เสร็จ`;
+  };
+};
+
+// ═══════════════════════ APPROVALS ═══════════════════════
+window.page_approvals = function(c){
+  const rows=[
+    {no:'MO-2401-002',type:'Manufacturing Order',by:'สมชาย',date:'25/01/67',st:'waiting'},
+    {no:'WD-2401-011',type:'Material Withdraw',by:'วิชัย',date:'24/01/67',st:'waiting'},
+    {no:'QC-2401-005',type:'QC Report',by:'นิดา',date:'24/01/67',st:'waiting'},
+    {no:'MO-2401-001',type:'Manufacturing Order',by:'สมชาย',date:'22/01/67',st:'approved'},
+    {no:'FM-001-R3',type:'Master Formula',by:'สมหญิง',date:'20/01/67',st:'approved'},
+  ];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-stamp" style="color:var(--blue);margin-right:7px"></i>อนุมัติเอกสาร</div><div class="page-sub">รองรับลายเซ็นดิจิทัล · บันทึก Audit Trail ทุกครั้ง</div></div>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>เลขเอกสาร</th><th>ประเภท</th><th>ผู้สร้าง</th><th>วันที่</th><th>สถานะ</th><th>ผู้อนุมัติ</th><th>การดำเนินการ</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td><span class="cell-code">${r.no}</span></td>
+            <td style="font-size:12px">${r.type}</td><td style="font-size:12px">${r.by}</td><td style="font-size:11px">${r.date}</td>
+            <td><span class="badge badge-${r.st==='waiting'?'amber':'green'}">${r.st==='waiting'?'รออนุมัติ':'อนุมัติแล้ว'}</span></td>
+            <td style="font-size:12px">${r.st==='approved'?'ผู้จัดการ':'-'}</td>
+            <td><div class="flex gap-6">
+              ${r.st==='waiting'?`<button class="btn btn-xs btn-success"><i class="fas fa-check"></i> อนุมัติ</button><button class="btn btn-xs btn-danger"><i class="fas fa-times"></i> ปฏิเสธ</button>`:''}
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-eye"></i> ดู</button>
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ NOTIFICATIONS ═══════════════════════
+window.page_notifications = function(c){
+  const notifs=[
+    {type:'red',icon:'fa-circle-exclamation',title:'วัตถุดิบวิกฤต: น้ำมันกุหลาบ',desc:'คงเหลือ 2.5 กก. ต่ำกว่าจุดสั่งซื้อ (5 กก.)',time:'10 นาทีที่แล้ว',unread:true},
+    {type:'amber',icon:'fa-clock',title:'งานใกล้กำหนด: MO-2401-003',desc:'EDP Oud Collection ส่งมอบ 30/01/67 เหลือ 2 วัน',time:'1 ชม. ที่แล้ว',unread:true},
+    {type:'blue',icon:'fa-stamp',title:'รออนุมัติ: MO-2401-002',desc:'สมชาย ส่งใบสั่งผลิต Jasmine Dream รออนุมัติ',time:'2 ชม. ที่แล้ว',unread:true},
+    {type:'red',icon:'fa-vial',title:'วัตถุดิบหมดอายุ: Fixative A',desc:'Lot L2311 หมดอายุ 31/01/67 กรุณาตรวจสอบ',time:'วานนี้ 16:30',unread:false},
+    {type:'amber',icon:'fa-circle-xmark',title:'QC ไม่ผ่าน: Batch B2312-05',desc:'พบการรั่วซึม 5 ขวด รออนุมัติทำลาย',time:'วานนี้ 14:15',unread:false},
+    {type:'green',icon:'fa-circle-check',title:'ปิดงานสำเร็จ: MO-2401-001',desc:'Rose Elixir 2,000 ขวด เข้าคลังสำเร็จรูปแล้ว',time:'23/01/67 10:00',unread:false},
+    {type:'teal',icon:'fa-boxes-stacked',title:'สต๊อกสินค้าต่ำ: Body Mist',desc:'คงเหลือ 120 ขวด ต่ำกว่า 200 ขวด',time:'22/01/67 09:30',unread:false},
+  ];
+  const colMap={red:'var(--red)',amber:'var(--amber)',blue:'var(--blue)',green:'var(--green)',teal:'var(--teal)',purple:'var(--purple)'};
+  const bgMap={red:'var(--red-light)',amber:'var(--amber-light)',blue:'var(--blue-light)',green:'var(--green-light)',teal:'var(--teal-light)',purple:'var(--purple-light)'};
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-bell" style="color:var(--blue);margin-right:7px"></i>Notification Center</div><div class="page-sub">7 การแจ้งเตือน · 3 ยังไม่อ่าน</div></div>
+    <button class="btn btn-ghost btn-sm"><i class="fas fa-check-double"></i> อ่านทั้งหมด</button>
+  </div>
+  <div class="card">
+    ${notifs.map(n=>`
+    <div class="notif-item ${n.unread?'unread':''}">
+      <div class="notif-icon-wrap" style="background:${bgMap[n.type]};color:${colMap[n.type]}"><i class="fas ${n.icon}"></i></div>
+      <div class="notif-body">
+        <div class="notif-title">${n.unread?'<span style="color:var(--red);margin-right:5px">●</span>':''}${n.title}</div>
+        <div class="notif-desc">${n.desc}</div>
+        <div class="notif-time"><i class="fas fa-clock"></i>${n.time}</div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+};
+
+// ═══════════════════════ DOCUMENTS ═══════════════════════
+window.page_documents = function(c){
+  const docs=[
+    {id:'DOC-001',name:'Manufacturing Order',icon:'fa-file-lines',col:'blue'},
+    {id:'DOC-002',name:'Master Formula',icon:'fa-prescription-bottle-medical',col:'purple'},
+    {id:'DOC-003',name:'Formula Submission (อย.)',icon:'fa-certificate',col:'teal'},
+    {id:'DOC-004',name:'Material Requisition',icon:'fa-hand-holding-droplet',col:'green'},
+    {id:'DOC-005',name:'Production Log',icon:'fa-clipboard-list',col:'blue'},
+    {id:'DOC-006',name:'QC Report',icon:'fa-microscope',col:'teal'},
+    {id:'DOC-007',name:'Sample Report',icon:'fa-vial',col:'purple'},
+    {id:'DOC-008',name:'Finished Goods Report',icon:'fa-box-open',col:'green'},
+    {id:'DOC-009',name:'Stock Card',icon:'fa-layer-group',col:'blue'},
+    {id:'DOC-010',name:'Damage Report',icon:'fa-triangle-exclamation',col:'red'},
+    {id:'DOC-011',name:'Certificate Request',icon:'fa-award',col:'teal'},
+    {id:'DOC-012',name:'Tax Invoice Request',icon:'fa-file-invoice',col:'green'},
+  ];
+  const colVar={blue:'var(--blue)',purple:'var(--purple)',teal:'var(--teal)',green:'var(--green)',red:'var(--red)'};
+  const bgVar={blue:'var(--blue-light)',purple:'var(--purple-light)',teal:'var(--teal-light)',green:'var(--green-light)',red:'var(--red-light)'};
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-print" style="color:var(--blue);margin-right:7px"></i>เอกสาร A4</div><div class="page-sub">มาตรฐาน GMP/ISO · Header + Logo + QR Code + ลายเซ็น + เลขอัตโนมัติ</div></div>
+  </div>
+  <div class="doc-grid">
+    ${docs.map(d=>`
+    <div class="doc-card">
+      <div class="doc-icon" style="background:${bgVar[d.col]};color:${colVar[d.col]}"><i class="fas ${d.icon}"></i></div>
+      <div class="doc-name">${d.name}</div>
+      <div class="doc-id">${d.id}</div>
+      <div class="flex gap-6" style="justify-content:center;margin-top:10px">
+        <button class="btn btn-ghost btn-xs"><i class="fas fa-print"></i> พิมพ์</button>
+        <button class="btn btn-ghost btn-xs"><i class="fas fa-file-pdf" style="color:#f40f02"></i> PDF</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+};
+
+// ═══════════════════════ REPORTS ═══════════════════════
+window.page_reports = function(c){
+  const items=[
+    {name:'รายงานวัตถุดิบ',icon:'fa-vials',col:'blue',desc:'การเคลื่อนไหวและคงเหลือ'},
+    {name:'รายงานการผลิต',icon:'fa-industry',col:'green',desc:'ประสิทธิภาพและปริมาณผลิต'},
+    {name:'รายงาน QC',icon:'fa-microscope',col:'teal',desc:'ผลการตรวจสอบคุณภาพ'},
+    {name:'รายงานของเสีย',icon:'fa-triangle-exclamation',col:'red',desc:'วัตถุดิบและสินค้าเสีย'},
+    {name:'สินค้าสำเร็จรูป',icon:'fa-box-open',col:'purple',desc:'สต๊อกและการจำหน่าย'},
+    {name:'ต้นทุนการผลิต',icon:'fa-coins',col:'green',desc:'ต้นทุนต่อ Batch'},
+    {name:'กำไรขั้นต้น',icon:'fa-chart-line',col:'blue',desc:'กำไร/ขาดทุนต่อสินค้า'},
+    {name:'วัตถุดิบรายเดือน',icon:'fa-calendar-alt',col:'teal',desc:'ใช้วัตถุดิบรายเดือน'},
+    {name:'การผลิตรายลูกค้า',icon:'fa-users',col:'purple',desc:'ยอดผลิตแยกตามลูกค้า'},
+  ];
+  const colVar={blue:'var(--blue)',purple:'var(--purple)',teal:'var(--teal)',green:'var(--green)',red:'var(--red)'};
+  const bgVar={blue:'var(--blue-light)',purple:'var(--purple-light)',teal:'var(--teal-light)',green:'var(--green-light)',red:'var(--red-light)'};
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-chart-bar" style="color:var(--blue);margin-right:7px"></i>รายงาน</div><div class="page-sub">Export PDF · Excel · CSV</div></div>
+  </div>
+  <div class="report-grid">
+    ${items.map(r=>`
+    <div class="report-card">
+      <div class="report-icon-wrap" style="background:${bgVar[r.col]};color:${colVar[r.col]}"><i class="fas ${r.icon}"></i></div>
+      <div class="report-name">${r.name}</div>
+      <div class="report-desc">${r.desc}</div>
+      <div class="flex gap-6 mt-12">
+        <button class="btn btn-ghost btn-xs" style="flex:1"><i class="fas fa-eye"></i> ดู</button>
+        <button class="btn btn-ghost btn-xs"><i class="fas fa-file-excel" style="color:#217346"></i></button>
+        <button class="btn btn-ghost btn-xs"><i class="fas fa-file-pdf" style="color:#f40f02"></i></button>
+        <button class="btn btn-ghost btn-xs"><i class="fas fa-file-csv"></i></button>
+      </div>
+    </div>`).join('')}
+  </div>`;
+};
+
+// ═══════════════════════ AUDIT LOG ═══════════════════════
+window.page_auditlog = function(c){
+  const rows=[
+    {id:1024,ts:'25/01/67 14:32',user:'สมชาย',action:'อนุมัติ',detail:'MO-2401-001',ip:'192.168.1.10',col:'green'},
+    {id:1023,ts:'25/01/67 14:15',user:'นิดา',action:'เพิ่ม',detail:'QC Batch B2401-01',ip:'192.168.1.12',col:'blue'},
+    {id:1022,ts:'25/01/67 11:05',user:'วิชัย',action:'พิมพ์',detail:'Production Log MO-2401-001',ip:'192.168.1.11',col:'teal'},
+    {id:1021,ts:'25/01/67 09:30',user:'สมหญิง',action:'แก้ไข',detail:'สูตร FM-001 Rev.3',ip:'192.168.1.13',col:'amber'},
+    {id:1020,ts:'24/01/67 16:45',user:'สมชาย',action:'เพิ่ม',detail:'สร้าง MO-2401-002',ip:'192.168.1.10',col:'blue'},
+    {id:1019,ts:'24/01/67 14:20',user:'วิชัย',action:'เบิก',detail:'Alcohol 95% 50L สำหรับ MO-2401-001',ip:'192.168.1.11',col:'purple'},
+  ];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-clock-rotate-left" style="color:var(--blue);margin-right:7px"></i>Audit Trail</div><div class="page-sub">บันทึกทุก Activity · เพิ่ม / แก้ไข / ลบ / อนุมัติ / พิมพ์</div></div>
+    <button class="btn btn-ghost btn-sm"><i class="fas fa-file-excel"></i> Export</button>
+  </div>
+  <div class="card">
+    <div class="filter-bar">
+      <div class="search-wrap"><i class="fas fa-magnifying-glass"></i><input placeholder="ค้นหา ผู้ใช้, กิจกรรม..."></div>
+      <select class="filter-select"><option>ทุกกิจกรรม</option><option>เพิ่ม</option><option>แก้ไข</option><option>ลบ</option><option>อนุมัติ</option><option>พิมพ์</option></select>
+      <input type="date" class="filter-select">
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>วันที่/เวลา</th><th>ผู้ใช้งาน</th><th>กิจกรรม</th><th>รายละเอียด</th><th>IP Address</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td style="color:var(--muted);font-family:var(--mono);font-size:11px">${r.id}</td>
+            <td style="font-size:11px;font-family:var(--mono);white-space:nowrap">${r.ts}</td>
+            <td><div class="flex items-center gap-6"><div class="sb-avatar" style="width:24px;height:24px;font-size:10px">${r.user[0]}</div>${r.user}</div></td>
+            <td><span class="badge badge-${r.col}">${r.action}</span></td>
+            <td style="font-size:12px">${r.detail}</td>
+            <td><span class="cell-code">${r.ip}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ FINISHED GOODS ═══════════════════════
+window.page_finishedgoods = function(c){
+  const rows=[
+    {sku:'FG-001',name:'Parfum Rose Elixir',scent:'กุหลาบ',size:'50ml',lot:'B2401-01',prod:1985,sold:450,left:1535},
+    {sku:'FG-002',name:'Jasmine Dream EDP',scent:'มะลิ',size:'100ml',lot:'B2312-02',prod:3200,sold:2100,left:1100},
+    {sku:'FG-003',name:'Oud Collection EDP',scent:'อู้ด',size:'30ml',lot:'B2311-03',prod:800,sold:795,left:5},
+    {sku:'FG-004',name:'Body Mist Summer',scent:'ฟลอรัล',size:'200ml',lot:'B2312-04',prod:2000,sold:1880,left:120},
+  ];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-box-open" style="color:var(--blue);margin-right:7px"></i>คลังสินค้าสำเร็จรูป</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-file-excel"></i> Export</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>SKU</th><th>ชื่อสินค้า</th><th>กลิ่น</th><th>ขนาด</th><th>Lot</th><th>ผลิต</th><th>ขาย</th><th>คงเหลือ</th><th>QR</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>{
+            const col=r.left<50?'var(--red)':r.left<200?'var(--amber)':'var(--ink)';
+            return `<tr>
+              <td><span class="cell-code">${r.sku}</span></td>
+              <td><strong>${r.name}</strong></td>
+              <td>${r.scent}</td><td>${r.size}</td>
+              <td><span class="cell-lot">${r.lot}</span></td>
+              <td style="font-family:var(--mono)">${r.prod.toLocaleString()}</td>
+              <td style="font-family:var(--mono)">${r.sold.toLocaleString()}</td>
+              <td><span style="font-weight:700;color:${col};font-family:var(--mono)">${r.left.toLocaleString()} ขวด</span></td>
+              <td><i class="fas fa-qrcode" style="color:var(--blue);cursor:pointer;font-size:16px"></i></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ USERS ═══════════════════════
+window.page_users = function(c){
+  const roles=['Super Admin','Manager','QC','Production','Warehouse','Sales','Accounting'];
+  const users=[
+    {name:'สมชาย ใจดี',pos:'ผู้จัดการโรงงาน',role:'Super Admin',email:'somchai@k.co',active:true},
+    {name:'สมหญิง แสงทอง',pos:'นักเคมี / QC',role:'QC',email:'somying@k.co',active:true},
+    {name:'วิชัย มั่นคง',pos:'หัวหน้าผลิต',role:'Production',email:'wichai@k.co',active:true},
+    {name:'นิดา สุขสันต์',pos:'พนักงานคลัง',role:'Warehouse',email:'nida@k.co',active:false},
+  ];
+  const roleCls={Super_Admin:'red',Manager:'blue',QC:'teal',Production:'green',Warehouse:'amber',Sales:'purple',Accounting:'gray'};
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-users-gear" style="color:var(--blue);margin-right:7px"></i>จัดการผู้ใช้และสิทธิ์</div></div>
+    <button class="btn btn-primary btn-sm"><i class="fas fa-user-plus"></i> เพิ่มผู้ใช้</button>
+  </div>
+  <div class="flex gap-6 mb-12" style="flex-wrap:wrap">
+    ${roles.map(r=>`<span class="badge badge-${roleCls[r.replace(' ','_')]||'gray'}" style="font-size:11px;padding:4px 10px">${r}</span>`).join('')}
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>ผู้ใช้</th><th>ตำแหน่ง</th><th>Role</th><th>Email</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <tbody>
+          ${users.map(u=>`<tr>
+            <td><div class="flex items-center gap-8"><div class="sb-avatar">${u.name[0]}</div><span style="font-weight:700">${u.name}</span></div></td>
+            <td>${u.pos}</td>
+            <td><span class="badge badge-${roleCls[u.role.replace(' ','_')]||'gray'}">${u.role}</span></td>
+            <td style="font-size:11px;color:var(--muted)">${u.email}</td>
+            <td><span class="badge badge-${u.active?'green':'gray'}">${u.active?'Active':'Inactive'}</span></td>
+            <td><div class="flex gap-6">
+              <button class="btn btn-ghost btn-xs"><i class="fas fa-pen"></i></button>
+              <button class="btn btn-xs btn-danger"><i class="fas fa-ban"></i></button>
+            </div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ PROFILE ═══════════════════════
+window.page_profile = function(c){
+  c.innerHTML=`
+  <div class="page-hd"><div class="page-title"><i class="fas fa-circle-user" style="color:var(--blue);margin-right:7px"></i>โปรไฟล์ผู้ใช้</div></div>
+  <div style="display:grid;grid-template-columns:260px 1fr;gap:14px">
+    <div class="card">
+      <div class="card-body" style="text-align:center">
+        <div style="width:80px;height:80px;background:linear-gradient(135deg,var(--blue),var(--green));border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:32px;color:#fff;font-weight:700;margin-bottom:12px">สม</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">สมชาย ใจดี</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">ผู้จัดการโรงงาน</div>
+        <span class="badge badge-red">Super Admin</span>
+        <div class="divider"></div>
+        <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px"><i class="fas fa-camera"></i> เปลี่ยนรูปภาพ</button>
+        <button class="btn btn-ghost btn-sm" style="width:100%"><i class="fas fa-signature"></i> อัปโหลดลายเซ็น</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title"><i class="fas fa-user-pen" style="color:var(--blue)"></i>ข้อมูลส่วนตัว</div></div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-group"><label class="form-label">ชื่อ</label><input class="form-control" value="สมชาย"></div>
+          <div class="form-group"><label class="form-label">นามสกุล</label><input class="form-control" value="ใจดี"></div>
+          <div class="form-group"><label class="form-label">ตำแหน่ง</label><input class="form-control" value="ผู้จัดการโรงงาน" readonly></div>
+          <div class="form-group"><label class="form-label">แผนก</label><input class="form-control" value="Management" readonly></div>
+          <div class="form-group"><label class="form-label">เบอร์โทร</label><input class="form-control" value="081-234-5678"></div>
+          <div class="form-group"><label class="form-label">อีเมล</label><input class="form-control" value="somchai@kontomhom.co"></div>
+          <div class="form-group"><label class="form-label">วันที่เริ่มงาน</label><input class="form-control" value="01/01/2562" readonly></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+          <button class="btn btn-ghost"><i class="fas fa-key"></i> เปลี่ยนรหัสผ่าน</button>
+          <button class="btn btn-primary"><i class="fas fa-floppy-disk"></i> บันทึก</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ CLOSE ORDER ═══════════════════════
+window.page_closeorder = function(c){
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-flag-checkered" style="color:var(--blue);margin-right:7px"></i>ปิดงานผลิต</div><div class="page-sub">MO-2401-001 · Rose Elixir · เพิ่มสินค้าเข้าคลังอัตโนมัติ</div></div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-num" style="color:var(--blue)">2,000</div><div class="stat-lbl">ผลิตทั้งหมด</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">1,985</div><div class="stat-lbl">ผ่าน QC</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">15</div><div class="stat-lbl">ไม่ผ่าน QC</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--amber)">0.75%</div><div class="stat-lbl">% ของเสีย</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="card-title"><i class="fas fa-circle-check" style="color:var(--green)"></i>สรุปผลการผลิต</div></div>
+    <div class="card-body">
+      <div style="background:var(--green-light);border:1px solid #86efac;border-radius:var(--radius2);padding:14px;display:flex;align-items:center;gap:12px">
+        <i class="fas fa-circle-check" style="font-size:24px;color:var(--green)"></i>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#15803d">พร้อมปิดงาน</div>
+          <div style="font-size:11px;color:#16a34a;margin-top:2px">ระบบจะเพิ่มสินค้า <strong>1,985 ขวด</strong> เข้าคลัง FG อัตโนมัติ และสร้าง Batch Record</div>
+        </div>
+        <button class="btn btn-success" onclick="alert('ปิดงาน MO-2401-001 สำเร็จ!\n✅ Rose Elixir 1,985 ขวด เข้าคลังสำเร็จรูป\n📊 Batch Record สร้างแล้ว');nav('finishedgoods')"><i class="fas fa-flag-checkered"></i> ยืนยันปิดงาน</button>
+      </div>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ WITHDRAW ═══════════════════════
+window.page_withdraw = function(c){
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-hand-holding-droplet" style="color:var(--blue);margin-right:7px"></i>เบิกวัตถุดิบ</div><div class="page-sub">ตัดสต๊อกอัตโนมัติเมื่ออนุมัติ</div></div>
+    <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> สร้างใบเบิก</button>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="card-title">WD-2401-012 · MO-2401-001</div><span class="badge badge-amber">รออนุมัติ</span></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div><div class="form-label">ผู้เบิก</div><div style="font-weight:700;margin-top:3px">วิชัย มั่นคง</div></div>
+        <div><div class="form-label">วันเวลา</div><div style="margin-top:3px">25/01/67 09:30</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>รหัส</th><th>ชื่อวัตถุดิบ</th><th>Lot</th><th>จำนวนเบิก</th><th>หน่วย</th><th>คงเหลือหลังเบิก</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell-code">RM-001</span></td><td style="font-weight:600">Rose Oil</td><td><span class="cell-lot">L2401</span></td><td><input class="form-control" type="number" value="1.5" style="width:80px"></td><td>กก.</td><td style="color:var(--amber);font-weight:700">1.0 กก.</td></tr>
+            <tr><td><span class="cell-code">RM-003</span></td><td style="font-weight:600">Alcohol 95%</td><td><span class="cell-lot">L2403</span></td><td><input class="form-control" type="number" value="50" style="width:80px"></td><td>ลิตร</td><td style="color:var(--red);font-weight:700">-42 ลิตร ⚠</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost">ยกเลิก</button>
+        <button class="btn btn-primary"><i class="fas fa-paper-plane"></i> ส่งอนุมัติ</button>
+      </div>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ EQUIPMENT ═══════════════════════
+window.page_equipment = function(c){
+  const rows=[
+    {sku:'EQ-001',type:'ขวดแก้ว 50ml',cat:'ขวด',sup:'SupplierA',qty:5000,min:1000,st:'ok'},
+    {sku:'EQ-002',type:'หัวสเปรย์ Atomizer',cat:'หัวสเปรย์',sup:'SupplierB',qty:800,min:2000,st:'danger'},
+    {sku:'EQ-003',type:'ฝาปิดทอง',cat:'ฝา',sup:'SupplierA',qty:3500,min:1000,st:'ok'},
+    {sku:'EQ-004',type:'กล่องแข็ง',cat:'กล่อง',sup:'SupplierC',qty:1200,min:1500,st:'warning'},
+    {sku:'EQ-005',type:'ฉลากสติ๊กเกอร์',cat:'ฉลาก',sup:'SupplierD',qty:8000,min:2000,st:'ok'},
+  ];
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-boxes-stacked" style="color:var(--blue);margin-right:7px"></i>คลังอุปกรณ์การผลิต</div></div>
+    <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> เพิ่มอุปกรณ์</button>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>SKU</th><th>ประเภท</th><th>หมวด</th><th>ผู้จำหน่าย</th><th>คงเหลือ</th><th>จุดสั่งซื้อ</th><th>สถานะ</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td><span class="cell-code">${r.sku}</span></td>
+            <td style="font-weight:700">${r.type}</td>
+            <td><span class="badge badge-gray">${r.cat}</span></td>
+            <td>${r.sup}</td>
+            <td style="font-weight:700;color:${r.st==='danger'?'var(--red)':r.st==='warning'?'var(--amber)':'var(--ink)'}">${r.qty.toLocaleString()}</td>
+            <td style="font-family:var(--mono)">${r.min.toLocaleString()}</td>
+            <td><span class="badge badge-${r.st==='danger'?'red':r.st==='warning'?'amber':'green'}">${r.st==='danger'?'วิกฤต':r.st==='warning'?'ต่ำ':'ปกติ'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ FACTORY FORMULA ═══════════════════════
+window.page_factoryformula = function(c){
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-industry" style="color:var(--blue);margin-right:7px"></i>สูตรโรงงาน</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm"><i class="fas fa-print"></i> พิมพ์สูตร</button>
+      <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> เพิ่มสูตร</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card">
+      <div class="card-head"><div class="card-title"><i class="fas fa-list-ol" style="color:var(--blue)"></i>ขั้นตอนการผลิต</div></div>
+      <div class="card-body">
+        <div class="checklist">
+          ${['ชั่งวัตถุดิบทุกชนิดตามสูตร','ผสม Alcohol + DPG ในถังผสม','เติม Fragrance Oil ทีละน้อย','คนด้วยใบพัดนาน 15 นาที','กรองผ่านไส้กรอง 0.45 micron','บรรจุใส่ขวดด้วย Filling Machine','ปิดฝาและตรวจสอบการรั่วซึม'].map((s,i)=>`
+          <div class="check-item"><div class="check-box" style="background:var(--blue);border-color:var(--blue);color:#fff;font-size:11px;font-weight:700">${i+1}</div><span class="check-lbl">${s}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title"><i class="fas fa-clock" style="color:var(--blue)"></i>เวลากระบวนการ</div></div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${[['หมักบ่ม','30 วัน','var(--blue)','fa-hourglass'],['กรอง','2 ชั่วโมง','var(--green)','fa-filter'],['บรรจุ','4 ชั่วโมง','var(--amber)','fa-fill-drip'],['QC','1 วัน','var(--teal)','fa-microscope']].map(([l,v,col,ic])=>`
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border)">
+            <i class="fas ${ic}" style="color:${col};font-size:16px;width:20px;text-align:center"></i>
+            <span style="flex:1;font-weight:600">${l}</span>
+            <span style="font-weight:700;font-family:var(--mono);color:${col}">${v}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ WASTE ═══════════════════════
+window.page_waste = function(c){
+  c.innerHTML=`
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-triangle-exclamation" style="color:var(--amber);margin-right:7px"></i>บันทึกของเสีย</div><div class="page-sub">ตัดสต๊อกอัตโนมัติเมื่ออนุมัติ</div></div>
+    <button class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> บันทึกของเสีย</button>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>เลขที่</th><th>ประเภท</th><th>รายการ</th><th>จำนวน</th><th>สาเหตุ</th><th>รูปภาพ</th><th>สถานะ</th></tr></thead>
+        <tbody>
+          <tr><td><span class="cell-code">DM-2401-001</span></td><td><span class="badge badge-red">สินค้า</span></td><td style="font-weight:600">Rose Elixir B2401-01</td><td>15 ขวด</td><td>หัวสเปรย์บกพร่อง</td><td><i class="fas fa-image" style="color:var(--blue);cursor:pointer;font-size:15px"></i></td><td><span class="badge badge-amber">รออนุมัติ</span></td></tr>
+          <tr><td><span class="cell-code">DM-2401-002</span></td><td><span class="badge badge-amber">วัตถุดิบ</span></td><td style="font-weight:600">Alcohol 95% L2311</td><td>5 ลิตร</td><td>ปนเปื้อน</td><td><i class="fas fa-image" style="color:var(--blue);cursor:pointer;font-size:15px"></i></td><td><span class="badge badge-green">อนุมัติแล้ว</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+};
+
+// ═══════════════════════ LOGOUT ═══════════════════════
+function doLogout(){
+  if(!confirm('ออกจากระบบ?')) return;
+  // ล้าง session
+  sessionStorage.removeItem('erp_token');
+  sessionStorage.removeItem('erp_user');
+  localStorage.removeItem('erp_token');
+  localStorage.removeItem('erp_user');
+  // หยุด realtime polling ถ้ามี
+  if(window.ERP && ERP.realtime) ERP.realtime.stopAll();
+  // แสดง login screen
+  document.getElementById('app').style.display='none';
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('upass').value='';
+  if(window.ERP) ERP.toast && ERP.toast.info('ออกจากระบบแล้ว');
+}
+
+// ═══════════════════════ BOOT ═══════════════════════
+function togglePassword() {
+  const input = document.getElementById('upass');
+  const icon  = document.getElementById('eyeIcon');
+  const btn   = document.getElementById('togglePass');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className  = 'fas fa-eye-slash';
+    btn.style.color = 'var(--blue)';
+  } else {
+    input.type = 'password';
+    icon.className  = 'fas fa-eye';
+    btn.style.color = 'var(--muted)';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  // Allow pressing Enter on login
+  document.getElementById('upass').addEventListener('keydown', e => {
+    if(e.key==='Enter') doLogin();
+  });
+});
+</script>
+  <script src="erp-connect.js"></script>
+  <script src="erp-integration-patch.js"></script>
+</body>
+</html>
