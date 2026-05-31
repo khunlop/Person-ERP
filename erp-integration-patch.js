@@ -1587,6 +1587,7 @@ window._loadMOs = async function() {
           <button class="btn btn-ghost btn-xs" title="พิมพ์ใบสั่งผลิต" onclick="ERP_PRINT.mo('${m.id}')"><i class="fas fa-print"></i></button>
           ${m.status==="waiting_approval"?`<button class="btn btn-xs btn-success" onclick="_approveMO('${m.id}',true)"><i class="fas fa-check"></i></button><button class="btn btn-xs btn-danger" onclick="_approveMO('${m.id}',false)"><i class="fas fa-times"></i></button>`:""}
           ${m.status==="draft"?`<button class="btn btn-xs btn-primary" onclick="_submitMO('${m.id}')"><i class="fas fa-paper-plane"></i></button>`:""}
+          ${["closed","cancelled"].includes(m.status)?"":`<button class="btn btn-xs btn-danger" title="ลบ MO" onclick="_deleteMO('${m.id}','${m.productName}','${m.status}')"><i class="fas fa-trash"></i></button>`}
         </div></td>
       </tr>`;
     }).join("") || `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted)">ไม่มี MO ที่เปิดอยู่</td></tr>`;
@@ -2273,3 +2274,46 @@ window._printFormulaById = async function(id) {
   ERP_PRINT._print(ERP_PRINT._base("สูตรส่ง อย.", f.code, content));
 };
 window._printFormula = () => ERP_PRINT._print && alert("กรุณาเลือกสูตรที่ต้องการพิมพ์จากปุ่ม 🖨️ ในแต่ละสูตรครับ");
+
+// ─────────────────────────────────────────────────────────────
+//  ลบใบสั่งผลิต (MO)
+// ─────────────────────────────────────────────────────────────
+window._deleteMO = async function(moId, productName, status) {
+  // ป้องกันลบ MO ที่ปิดแล้ว
+  if (status === "closed") {
+    ERP.toast.warning("ไม่สามารถลบ MO ที่ปิดแล้วได้ครับ");
+    return;
+  }
+
+  // ยืนยันก่อนลบ
+  const confirm1 = confirm(`ลบใบสั่งผลิต "${moId}" — ${productName}?\n\nการลบจะไม่สามารถกู้คืนได้`);
+  if (!confirm1) return;
+
+  // ถ้าสถานะไม่ใช่ draft ต้องยืนยัน 2 ครั้ง
+  if (status !== "draft") {
+    const confirm2 = confirm(`⚠️ MO นี้อยู่ในสถานะ "${status}"\nยืนยันว่าต้องการลบจริงๆ ใช่ไหม?`);
+    if (!confirm2) return;
+  }
+
+  try {
+    ERP.loading.show(`กำลังลบ ${moId}...`);
+
+    // ลบ MO
+    await ERP.api.delete_("ProductionOrders", moId);
+
+    // ลบ Approval ที่เกี่ยวข้องด้วย
+    try {
+      const apprRes = await ERP.api.approvals({ limit: 200 });
+      const appr = (apprRes.data || []).find(a => a.docId === moId);
+      if (appr) await ERP.api.delete_("Approvals", appr.id);
+    } catch(_) {} // ไม่มี approval ก็ไม่เป็นไร
+
+    ERP.loading.hide();
+    ERP.toast.success(`ลบ ${moId} สำเร็จ`);
+    _loadMOs();
+
+  } catch(e) {
+    ERP.loading.hide();
+    ERP.toast.danger("ลบล้มเหลว: " + e.message);
+  }
+};
