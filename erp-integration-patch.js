@@ -571,7 +571,22 @@ document.addEventListener("DOMContentLoaded", function() {
   setTimeout(function() {
     // Override สร้าง MO
     if (window.page_mo) {
-      window.page_mo._new = function() {
+      window.page_mo._new = async function() {
+        // โหลดสูตรทั้งหมดก่อนเปิด Modal
+        let formulaOptions = '<option value="">-- เลือกสูตร --</option>';
+        try {
+          const [fmRes1, fmRes2] = await Promise.all([
+            ERP.api.formulas({ limit: 200 }),
+            ERP.api.getAll("Formulas", { limit: 200 })
+          ]);
+          const fms = fmRes1.data || fmRes2.data || [];
+          formulaOptions += fms.map(f =>
+            `<option value="${f.id}">${f.code} — ${f.nameTH||f.code} (${f.revision||"Rev.1"})</option>`
+          ).join("");
+        } catch(_) {
+          formulaOptions += '<option value="">ไม่พบสูตร</option>';
+        }
+
         openModal(`
         <div class="modal-hd">
           <div class="modal-title"><i class="fas fa-plus-circle" style="color:var(--blue)"></i>สร้างใบสั่งผลิตใหม่</div>
@@ -579,14 +594,26 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
         <div class="modal-body">
           <div class="form-grid">
-            <div class="form-group"><label class="form-label">ชื่อสินค้า</label><input class="form-control" id="mo_name" placeholder="ชื่อสินค้า"></div>
+            <div class="form-group"><label class="form-label">ชื่อสินค้า *</label><input class="form-control" id="mo_name" placeholder="ชื่อสินค้า"></div>
             <div class="form-group"><label class="form-label">ประเภท</label><select class="form-control" id="mo_cat"><option>น้ำหอม EDP</option><option>น้ำหอม EDT</option><option>Body Mist</option><option>เครื่องสำอาง</option></select></div>
             <div class="form-group"><label class="form-label">ลูกค้า</label><input class="form-control" id="mo_cust" placeholder="ชื่อลูกค้า"></div>
             <div class="form-group"><label class="form-label">Sales Order</label><input class="form-control" id="mo_so" placeholder="SO-XXXX-XXX"></div>
-            <div class="form-group"><label class="form-label">จำนวน</label><input class="form-control" type="number" id="mo_qty" placeholder="0"></div>
+            <div class="form-group"><label class="form-label">จำนวน *</label><input class="form-control" type="number" id="mo_qty" placeholder="0"></div>
             <div class="form-group"><label class="form-label">หน่วย</label><select class="form-control" id="mo_unit"><option>ขวด</option><option>ชิ้น</option><option>กล่อง</option></select></div>
             <div class="form-group"><label class="form-label">วันที่บรรจุ</label><input class="form-control" type="date" id="mo_fill"></div>
             <div class="form-group"><label class="form-label">วันส่งมอบ</label><input class="form-control" type="date" id="mo_deliver"></div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label"><i class="fas fa-flask" style="color:var(--blue)"></i> สูตรที่ใช้ผลิต</label>
+              <select class="form-control" id="mo_formula" onchange="window._onFormulaSelect(this.value)">
+                ${formulaOptions}
+              </select>
+            </div>
+            <div class="form-group" id="mo_formula_detail" style="grid-column:1/-1;display:none">
+              <div style="background:var(--blue-light);border:1px solid rgba(21,88,192,.15);border-radius:8px;padding:12px">
+                <div style="font-size:11px;font-weight:600;color:var(--blue);margin-bottom:8px"><i class="fas fa-flask"></i> ส่วนผสมสูตรที่เลือก</div>
+                <div id="mo_formula_ingr" style="font-size:11px;color:var(--muted)"></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-ft">
@@ -594,6 +621,30 @@ document.addEventListener("DOMContentLoaded", function() {
           <button class="btn btn-primary" onclick="window._saveMO()"><i class="fas fa-floppy-disk"></i> สร้าง Draft</button>
         </div>`, true);
       };
+
+// แสดงรายละเอียดสูตรที่เลือก
+window._onFormulaSelect = async function(formulaId) {
+  const detail = document.getElementById("mo_formula_detail");
+  const ingrEl = document.getElementById("mo_formula_ingr");
+  if (!formulaId || !detail || !ingrEl) {
+    if (detail) detail.style.display = "none";
+    return;
+  }
+  try {
+    const { data: f } = await ERP.api.getById("Formulas", formulaId);
+    let ingr = [];
+    try { ingr = JSON.parse(f.ingredientsJson || "[]"); } catch(_) {}
+    const total = ingr.reduce((s,i) => s+(parseFloat(i.pct)||0), 0);
+    ingrEl.innerHTML = ingr.map(i =>
+      `<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:rgba(21,88,192,.1);border-radius:4px">
+        <strong>${i.sku||""}</strong> ${i.nameTH||""} <span style="color:var(--blue)">${i.pct||0}%</span>
+      </span>`
+    ).join("") + `<div style="margin-top:6px;font-weight:600;color:${Math.abs(total-100)<0.01?"var(--green)":"var(--red)"}">รวม: ${total.toFixed(2)}%</div>`;
+    detail.style.display = "block";
+  } catch(_) {
+    if (detail) detail.style.display = "none";
+  }
+};
     }
 
     // Override เพิ่มวัตถุดิบ
@@ -639,13 +690,14 @@ window._saveMO = async function() {
     const res = await ERP.http.post("createMO", {
       data: {
         productName    : name,
-        productCategory: document.getElementById("mo_cat")?.value || "",
-        customerId     : document.getElementById("mo_cust")?.value || "",
-        salesOrderNo   : document.getElementById("mo_so")?.value  || "",
+        productCategory: document.getElementById("mo_cat")?.value      || "",
+        customerId     : document.getElementById("mo_cust")?.value      || "",
+        salesOrderNo   : document.getElementById("mo_so")?.value        || "",
         qty            : qty,
-        unit           : document.getElementById("mo_unit")?.value || "ขวด",
-        fillDate       : document.getElementById("mo_fill")?.value || "",
-        deliveryDate   : document.getElementById("mo_deliver")?.value || "",
+        unit           : document.getElementById("mo_unit")?.value      || "ขวด",
+        fillDate       : document.getElementById("mo_fill")?.value      || "",
+        deliveryDate   : document.getElementById("mo_deliver")?.value   || "",
+        formulaId      : document.getElementById("mo_formula")?.value   || "",
       }
     });
     closeModal();
