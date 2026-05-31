@@ -1930,3 +1930,228 @@ window.page_mo._detail = async function(moId, productName, status) {
     ERP.toast.danger("โหลด MO ล้มเหลว: " + e.message);
   }
 };
+
+// ─────────────────────────────────────────────────────────────
+//  สูตรส่ง อย. — สร้าง/แก้ไขสูตร
+// ─────────────────────────────────────────────────────────────
+window.page_formula = function(c) {
+  c.innerHTML = `
+  <div class="page-hd">
+    <div><div class="page-title"><i class="fas fa-flask" style="color:var(--blue);margin-right:7px"></i>สูตรส่ง อย.</div>
+    <div class="page-sub" id="fmSub">กำลังโหลด...</div></div>
+    <div class="page-hd-actions">
+      <button class="btn btn-ghost btn-sm" onclick="nav('formula')"><i class="fas fa-rotate"></i></button>
+      <button class="btn btn-ghost btn-sm" onclick="window._printFormula()"><i class="fas fa-print"></i> พิมพ์สูตร</button>
+      <button class="btn btn-primary btn-sm" onclick="window._showNewFormula()"><i class="fas fa-plus"></i> สร้างสูตรใหม่</button>
+    </div>
+  </div>
+  <div id="formulaList"></div>`;
+
+  ERP.run(async () => {
+    const { data } = await ERP.api.formulas({ limit: 100 });
+    const sub = document.getElementById("fmSub");
+    if (sub) sub.textContent = `${(data||[]).length} สูตร · คลิกสูตรเพื่อดูรายละเอียด`;
+    const list = document.getElementById("formulaList");
+    if (!data?.length) {
+      list.innerHTML = `<div class="card" style="padding:30px;text-align:center;color:var(--muted)"><i class="fas fa-flask" style="font-size:32px;opacity:.3"></i><div style="margin-top:8px">ยังไม่มีสูตร กดสร้างสูตรใหม่ได้เลย</div></div>`;
+      return;
+    }
+    list.innerHTML = data.map(f => {
+      let ingr = [];
+      try { ingr = JSON.parse(f.ingredientsJson || "[]"); } catch(_) {}
+      const total = ingr.reduce((s, i) => s + (parseFloat(i.pct)||0), 0);
+      const isOk  = Math.abs(total - 100) < 0.01;
+      return `
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-head">
+          <div>
+            <div class="card-title"><i class="fas fa-flask" style="color:var(--blue)"></i>${f.nameTH||f.code}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${f.code} · ${f.revision||"Rev.1"} · สินค้า: ${f.productId||"-"}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:13px;font-weight:700;color:${isOk?"var(--green)":"var(--red)"}">${total.toFixed(2)}% ${isOk?"✅":""}</span>
+            <span class="badge ${f.status==="active"?"badge-green":"badge-gray"}">${f.status==="active"?"Active":"Inactive"}</span>
+            <button class="btn btn-ghost btn-xs" onclick="window._editFormula('${f.id}')"><i class="fas fa-pen"></i> แก้ไข</button>
+            <button class="btn btn-ghost btn-xs" onclick="window._printFormulaById('${f.id}')"><i class="fas fa-print"></i></button>
+          </div>
+        </div>
+        <div class="card-body">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="background:var(--surface2)"><th style="padding:6px 10px;text-align:left">#</th><th style="padding:6px 10px;text-align:left">รหัส</th><th style="padding:6px 10px;text-align:left">ชื่อวัตถุดิบ</th><th style="padding:6px 10px;text-align:right">% โดยน้ำหนัก</th><th style="padding:6px 10px;text-align:right">กรัม/1กก.</th><th style="padding:6px 10px;text-align:left">หน่วย</th></tr></thead>
+            <tbody>${ingr.map((i,idx) => `<tr style="border-bottom:1px solid var(--border)"><td style="padding:5px 10px">${idx+1}</td><td style="padding:5px 10px"><span class="cell-code">${i.sku||"-"}</span></td><td style="padding:5px 10px">${i.nameTH||i.name||"-"}</td><td style="padding:5px 10px;text-align:right;font-weight:600">${i.pct||0}</td><td style="padding:5px 10px;text-align:right">${((parseFloat(i.pct)||0)*10).toFixed(1)}</td><td style="padding:5px 10px">${i.unit||"กรัม"}</td></tr>`).join("")}
+            <tr style="background:var(--surface2);font-weight:700"><td colspan="3" style="padding:6px 10px">รวม %</td><td style="padding:6px 10px;text-align:right;color:${isOk?"var(--green)":"var(--red)"}">${total.toFixed(4)}%</td><td colspan="2"></td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:10px">
+            <button class="btn btn-ghost btn-xs" onclick="window._addIngredient('${f.id}')"><i class="fas fa-plus"></i> เพิ่มวัตถุดิบ</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+  }, { loading: false });
+};
+
+// สร้างสูตรใหม่
+window._showNewFormula = function() {
+  openModal(`
+  <div class="modal-hd">
+    <div class="modal-title"><i class="fas fa-flask" style="color:var(--blue)"></i>สร้างสูตรใหม่</div>
+    <button class="close-btn" onclick="closeModal()"><i class="fas fa-xmark"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">รหัสสูตร</label><input class="form-control" id="fm_code" placeholder="FM-XXX"></div>
+      <div class="form-group"><label class="form-label">ชื่อสูตร</label><input class="form-control" id="fm_name" placeholder="ชื่อสูตร"></div>
+      <div class="form-group"><label class="form-label">สินค้าที่ใช้</label><input class="form-control" id="fm_product" placeholder="รหัสสินค้า"></div>
+      <div class="form-group"><label class="form-label">วันที่มีผล</label><input class="form-control" type="date" id="fm_date"></div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--muted)">ส่วนผสม (ต้องรวมกัน = 100%)</div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse" id="fmIngrTable">
+        <thead><tr style="background:var(--surface2)"><th style="padding:6px;text-align:left">SKU</th><th style="padding:6px;text-align:left">ชื่อ</th><th style="padding:6px;text-align:right">% โดยน้ำหนัก</th><th style="padding:6px"></th></tr></thead>
+        <tbody id="fmIngrBody"></tbody>
+      </table>
+      <button class="btn btn-ghost btn-xs" style="margin-top:8px" onclick="window._addFmRow()"><i class="fas fa-plus"></i> เพิ่มวัตถุดิบ</button>
+      <div style="text-align:right;margin-top:8px;font-weight:700" id="fmTotal">รวม: 0.00%</div>
+    </div>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+    <button class="btn btn-primary" onclick="window._saveFormula()"><i class="fas fa-floppy-disk"></i> บันทึกสูตร</button>
+  </div>`, true);
+  window._addFmRow();
+};
+
+window._fmRowCount = 0;
+window._addFmRow = function() {
+  const n = ++window._fmRowCount;
+  const tbody = document.getElementById("fmIngrBody");
+  if (!tbody) return;
+  const tr = document.createElement("tr");
+  tr.id = `fmRow_${n}`;
+  tr.innerHTML = `
+    <td style="padding:4px"><input class="form-control" style="font-size:11px" id="fm_sku_${n}" placeholder="RM-XXX"></td>
+    <td style="padding:4px"><input class="form-control" style="font-size:11px" id="fm_name_${n}" placeholder="ชื่อวัตถุดิบ"></td>
+    <td style="padding:4px"><input class="form-control" style="font-size:11px;text-align:right" type="number" id="fm_pct_${n}" placeholder="0" oninput="window._calcFmTotal()" step="0.01"></td>
+    <td style="padding:4px"><button class="btn btn-xs btn-danger" onclick="document.getElementById('fmRow_${n}').remove();window._calcFmTotal()"><i class="fas fa-trash"></i></button></td>`;
+  tbody.appendChild(tr);
+};
+
+window._calcFmTotal = function() {
+  let total = 0;
+  document.querySelectorAll("[id^='fm_pct_']").forEach(el => { total += parseFloat(el.value||0); });
+  const el = document.getElementById("fmTotal");
+  if (el) { el.textContent = `รวม: ${total.toFixed(4)}%`; el.style.color = Math.abs(total-100)<0.01?"var(--green)":"var(--red)"; }
+};
+
+window._saveFormula = async function() {
+  const code = document.getElementById("fm_code")?.value?.trim();
+  const name = document.getElementById("fm_name")?.value?.trim();
+  if (!code) { alert("กรุณากรอกรหัสสูตร"); return; }
+  if (!name) { alert("กรุณากรอกชื่อสูตร"); return; }
+
+  const ingr = [];
+  document.querySelectorAll("[id^='fm_sku_']").forEach(el => {
+    const n   = el.id.split("_")[2];
+    const sku = el.value.trim();
+    const nm  = document.getElementById(`fm_name_${n}`)?.value?.trim();
+    const pct = parseFloat(document.getElementById(`fm_pct_${n}`)?.value||0);
+    if (sku && pct > 0) ingr.push({ sku, nameTH: nm, pct, unit: "กรัม" });
+  });
+
+  if (!ingr.length) { alert("กรุณาเพิ่มวัตถุดิบอย่างน้อย 1 รายการ"); return; }
+
+  const btn = document.querySelector(".modal-ft .btn-primary");
+  if (btn) { btn.disabled = true; btn.textContent = "กำลังบันทึก..."; }
+
+  try {
+    await ERP.api.saveFormula({
+      code, nameTH: name,
+      productId      : document.getElementById("fm_product")?.value || "",
+      effectiveDate  : document.getElementById("fm_date")?.value    || "",
+      ingredientsJson: JSON.stringify(ingr),
+    });
+    closeModal();
+    ERP.toast.success("บันทึกสูตร " + code + " สำเร็จ!");
+    nav("formula");
+  } catch(e) {
+    ERP.toast.danger("บันทึกล้มเหลว: " + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = "บันทึกสูตร"; }
+  }
+};
+
+// เพิ่มวัตถุดิบในสูตรที่มีอยู่แล้ว
+window._addIngredient = async function(formulaId) {
+  const { data: f } = await ERP.run(() => ERP.api.getById("Formulas", formulaId), { loadingMsg: "โหลดสูตร..." });
+  let ingr = [];
+  try { ingr = JSON.parse(f.ingredientsJson || "[]"); } catch(_) {}
+
+  openModal(`
+  <div class="modal-hd">
+    <div class="modal-title"><i class="fas fa-plus-circle" style="color:var(--blue)"></i>เพิ่มวัตถุดิบ: ${f.code}</div>
+    <button class="close-btn" onclick="closeModal()"><i class="fas fa-xmark"></i></button>
+  </div>
+  <div class="modal-body">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ส่วนผสมปัจจุบันรวม ${ingr.reduce((s,i)=>s+(parseFloat(i.pct)||0),0).toFixed(2)}%</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">SKU วัตถุดิบ</label><input class="form-control" id="ai_sku" placeholder="RM-XXX"></div>
+      <div class="form-group"><label class="form-label">ชื่อวัตถุดิบ</label><input class="form-control" id="ai_name" placeholder="ชื่อ"></div>
+      <div class="form-group"><label class="form-label">% โดยน้ำหนัก</label><input class="form-control" type="number" id="ai_pct" placeholder="0" step="0.01"></div>
+      <div class="form-group"><label class="form-label">หน่วย</label><select class="form-control" id="ai_unit"><option>กรัม</option><option>มล.</option></select></div>
+    </div>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+    <button class="btn btn-primary" onclick="window._saveIngredient('${formulaId}',${JSON.stringify(ingr).replace(/'/g,"&#39;")})"><i class="fas fa-floppy-disk"></i> เพิ่ม</button>
+  </div>`);
+};
+
+window._saveIngredient = async function(formulaId, existingIngr) {
+  const sku  = document.getElementById("ai_sku")?.value?.trim();
+  const name = document.getElementById("ai_name")?.value?.trim();
+  const pct  = parseFloat(document.getElementById("ai_pct")?.value||0);
+  if (!sku)   { alert("กรุณากรอก SKU"); return; }
+  if (pct<=0) { alert("กรุณากรอก %"); return; }
+
+  const newIngr = [...existingIngr, { sku, nameTH: name, pct, unit: document.getElementById("ai_unit")?.value||"กรัม" }];
+  const total   = newIngr.reduce((s,i)=>s+(parseFloat(i.pct)||0),0);
+
+  if (Math.abs(total-100) > 0.01 && !confirm(`รวม % = ${total.toFixed(4)} (ไม่ใช่ 100%) ต้องการบันทึกต่อไหม?`)) return;
+
+  const btn = document.querySelector(".modal-ft .btn-primary");
+  if (btn) { btn.disabled = true; btn.textContent = "กำลังบันทึก..."; }
+  try {
+    await ERP.api.update("Formulas", formulaId, { ingredientsJson: JSON.stringify(newIngr) });
+    closeModal();
+    ERP.toast.success("เพิ่มวัตถุดิบสำเร็จ!");
+    nav("formula");
+  } catch(e) {
+    ERP.toast.danger("บันทึกล้มเหลว: " + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = "เพิ่ม"; }
+  }
+};
+
+// พิมพ์สูตร
+window._printFormulaById = async function(id) {
+  const { data: f } = await ERP.run(() => ERP.api.getById("Formulas", id), { loadingMsg: "โหลดสูตร..." });
+  let ingr = [];
+  try { ingr = JSON.parse(f.ingredientsJson || "[]"); } catch(_) {}
+  const total = ingr.reduce((s,i)=>s+(parseFloat(i.pct)||0),0);
+  const content = `
+  <div class="info-grid">
+    <div class="info-item"><span class="info-label">รหัสสูตร:</span><span class="info-value">${f.code}</span></div>
+    <div class="info-item"><span class="info-label">Revision:</span><span class="info-value">${f.revision||"Rev.1"}</span></div>
+    <div class="info-item"><span class="info-label">สินค้า:</span><span class="info-value">${f.productId||"-"}</span></div>
+    <div class="info-item"><span class="info-label">วันที่มีผล:</span><span class="info-value">${f.effectiveDate||"-"}</span></div>
+  </div>
+  <div class="section-title">ส่วนผสม</div>
+  <table>
+    <thead><tr><th>#</th><th>SKU</th><th>ชื่อวัตถุดิบ</th><th style="text-align:right">% โดยน้ำหนัก</th><th style="text-align:right">กรัม/1กก.</th><th>หน่วย</th></tr></thead>
+    <tbody>
+      ${ingr.map((i,idx)=>`<tr><td>${idx+1}</td><td>${i.sku||"-"}</td><td>${i.nameTH||i.name||"-"}</td><td style="text-align:right;font-weight:600">${i.pct||0}%</td><td style="text-align:right">${((parseFloat(i.pct)||0)*10).toFixed(1)}</td><td>${i.unit||"กรัม"}</td></tr>`).join("")}
+      <tr style="font-weight:700;background:#f0f4ff"><td colspan="3">รวม</td><td style="text-align:right;color:${Math.abs(total-100)<0.01?"#166534":"#991b1b"}">${total.toFixed(4)}%</td><td colspan="2"></td></tr>
+    </tbody>
+  </table>`;
+  ERP_PRINT._print(ERP_PRINT._base("สูตรส่ง อย.", f.code, content));
+};
+window._printFormula = () => ERP_PRINT._print && alert("กรุณาเลือกสูตรที่ต้องการพิมพ์จากปุ่ม 🖨️ ในแต่ละสูตรครับ");
