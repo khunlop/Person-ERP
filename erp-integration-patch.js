@@ -36,15 +36,19 @@ window.doLogin = async function() {
 
     // อัปเดต UI ด้วยข้อมูล User จริง
     const u = res.user;
-    const initials = (u.nameTH || u.username || "??").substring(0, 2);
 
-    // อัปเดต Sidebar Avatar
+    // อัปเดตชื่อและ Role ใน Sidebar
+    const sbName = document.getElementById("sbUserName");
+    const sbRole = document.getElementById("sbUserRole");
+    if (sbName) sbName.textContent = u.nameTH || u.username || "ผู้ใช้งาน";
+    if (sbRole) sbRole.textContent = u.position || u.role || "User";
+
+    // อัปเดต Avatar
     _updateSidebarAvatar(u);
 
-    const nameEls = document.querySelectorAll(".sb-user-name");
-    nameEls.forEach(el => el.textContent = u.nameTH || u.username);
-    const roleEls = document.querySelectorAll(".sb-user-role");
-    roleEls.forEach(el => el.textContent = u.role || "User");
+    // อัปเดตชื่อทั้งหมดใน DOM
+    document.querySelectorAll(".sb-user-name").forEach(el => el.textContent = u.nameTH || u.username);
+    document.querySelectorAll(".sb-user-role").forEach(el => el.textContent = u.position || u.role || "User");
 
     // ซ่อน login screen / แสดง app
     document.getElementById("loginScreen").style.display = "none";
@@ -550,6 +554,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // If already logged in (session persisted), go straight to app
   if (ERP.session.isLoggedIn) {
+    const u = ERP.session.user;
+
+    // อัปเดต Sidebar ด้วยข้อมูล user จริง
+    const sbName = document.getElementById("sbUserName");
+    const sbRole = document.getElementById("sbUserRole");
+    if (sbName && u) sbName.textContent = u.nameTH || u.username || "ผู้ใช้งาน";
+    if (sbRole && u) sbRole.textContent = u.position || u.role || "User";
+    if (u) _updateSidebarAvatar(u);
+
     document.getElementById("loginScreen").style.display = "none";
     const app = document.getElementById("app");
     app.style.display = "flex";
