@@ -585,6 +585,9 @@ document.addEventListener("DOMContentLoaded", function() {
     // Override สร้าง MO
     if (window.page_mo) {
       window.page_mo._new = async function() {
+        // แสดง loading ทันทีที่กด
+        ERP.loading.show("กำลังโหลดข้อมูลสูตร...");
+
         // โหลดสูตรทั้งหมดก่อนเปิด Modal
         let formulaOptions = '<option value="">-- เลือกสูตร --</option>';
         try {
@@ -598,7 +601,11 @@ document.addEventListener("DOMContentLoaded", function() {
           ).join("");
         } catch(_) {
           formulaOptions += '<option value="">ไม่พบสูตร</option>';
+          ERP.loading.hide();
         }
+
+        // ซ่อน loading แล้วเปิด Modal
+        ERP.loading.hide();
 
         openModal(`
         <div class="modal-hd">
